@@ -1,9 +1,22 @@
 **********************************
-*! v 2.0   20apr2020				  by JPA     		*
+*! v 2.2   06apr2020				  by JPA     		*
+*   dependencies checks run quietly
+*   apoverty and ainequal added to the dependencies check
+*! v 2.1   05apr2020				  by JPA     		*
+*   changed ado name from grouppov to groupdata
+*! v 2.0   02apr2020				  by JPA     		*
+*   changes made to use this method to estimate learning poverty 
 * 	add support to aweight
 *   replace wtile2 by alorenz
 *   add microdata value as benchmark
-*! v 1.0   14jan2014				  by JPA and SM		*
+*! v 1.1   14jan2014				  by SM and SM		
+*   change ado name from povcal to grouppov
+*   technical note on Global Poverty Estimation: Theoratical and Empirical 
+*   Validity of Parametric Lorenz Curve Estiamtes and Revisitng Non-parametric 
+*   techniques. (January, 2014), for discussions on the World Bank Global 
+*   Poverty Monitoring Working Group.
+*! v 1.0   02fev2012				  by SM and JPA 			*
+*   povcal.ado created by Joao Pedro Azevedo and Shabana Mitra
 **********************************
 
 program define groupdata, rclass
@@ -30,10 +43,10 @@ quietly {
 	  * Download and install required user written ado's
 	  *-----------------------------------------------------------------------------
 	  * Fill this list will all user-written commands this project requires
-		  local user_commands groupfunction alorenz which_version
+		  local user_commands groupfunction alorenz which_version apoverty ainequal
 
 	  * Loop over all the commands to test if they are already installed, if not, then install
-		  foreach command of local user_commands {
+		  qui foreach command of local user_commands {
 			cap which `command'
 			if _rc == 111 { 
 				ssc install `command'
