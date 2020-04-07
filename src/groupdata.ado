@@ -1,6 +1,13 @@
-**********************************
-*! v 2.3   07apr2020				  by JPA     		*
-*!	improve the layout
+*-----------------------------------------------------------------------------
+*! v 2.3   08apr2020				  by JPA     		*
+*   Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative 
+*		proportion of income held by that proportion of the population
+*   Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype 
+*   5 grouped data: W=Percentage of the population in a given interval of 
+*		incomes, X=The mean income of that interval.
+*   Unit record data: Percentage of the population with same income level, 
+*		The income level.
+*		improve the layout
 * v 2.2   06apr2020				  by JPA     		*
 *   dependencies checks run quietly
 *   apoverty and ainequal added to the dependencies check
@@ -19,7 +26,7 @@
 *   Poverty Monitoring Working Group.
 * v 1.0   02fev2012				  by SM and JPA 			*
 *   povcal.ado created by Joao Pedro Azevedo and Shabana Mitra
-**********************************
+*-----------------------------------------------------------------------------
 
 program define groupdata, rclass
 
@@ -37,27 +44,34 @@ program define groupdata, rclass
                          REGress				///
 						 BENCHmark				///
 						 NOFIGures				///
+						 UNITRECord				///
+						 type1					///
+						 type2					///
+						 type4					///
+						 type5					///
 					]
 
 quietly {
 
 
-	  *-----------------------------------------------------------------------------
-	  * Check options
-	  
+*-----------------------------------------------------------------------------
+* Check options
+*-----------------------------------------------------------------------------
+
 	  if (`mu' != -99) & ("`benchmark'" != "") {
         di as err "option benchmark only works with original mean."
         exit 198
 	  }
 
 
-	  *-----------------------------------------------------------------------------
-	  * Download and install required user written ado's
-	  *-----------------------------------------------------------------------------
-	  * Fill this list will all user-written commands this project requires
+*-----------------------------------------------------------------------------
+* Download and install required user written ado's
+*-----------------------------------------------------------------------------
+* Fill this list will all user-written commands this project requires
+
 		  local user_commands groupfunction alorenz which_version apoverty ainequal estout
 
-	  * Loop over all the commands to test if they are already installed, if not, then install
+* Loop over all the commands to test if they are already installed, if not, then install
 		  qui foreach command of local user_commands {
 			cap which `command'
 			if _rc == 111 { 
@@ -187,7 +201,7 @@ quietly {
 			** Plot Figure 
             ************************************
 
-			if ("`nofigure'" == "") {
+			if ("`nofigures'" == "") {
 			    
 				local mustr = strofreal(`mu',"%9.2f")
 				local intercept00 = _N + 1
@@ -216,7 +230,6 @@ quietly {
 			label var `b' 	"B"
 			label var `c'	"C"
 
-*            reg y1 a b c 	in 1/`last'		if `touse', noconstant
             qui reg `y1' `a' `b' `c' in 1/`last' if `touse', noconstant
             est store gq
             mat `gq' = e(b)
@@ -230,7 +243,6 @@ quietly {
 			label var `x1'	"B"
 			label var `x2'	"C"
 			
- *           `noi2' reg y2 x1 x2 	in 1/`last'		if `touse'
             qui reg `y2' `x1' `x2' in 1/`last' if `touse'
             est store beta
             mat `cofb' = e(b)
@@ -241,7 +253,7 @@ quietly {
 ********************************************************************************
 ********************************************************************************
 		
-        qui if ("`grouped'" != "") {
+        qui if ("`grouped'" == "grouped") {
 
 			noi di ""
 			noi di "Estimation using grouped data..."
@@ -292,7 +304,7 @@ quietly {
 			** Plot Figure 
             ************************************
 
-			if ("`nofigure'" == "") {
+			if ("`nofigures'" == "") {
 				local mustr = strofreal(`mu',"%9.2f")
 				local intercept00 = `bins'+1
 				replace `Lg' = 0 in `intercept00'
@@ -320,7 +332,6 @@ quietly {
 			label variable `bg' 	"B"
 			label variable `cg' 	"C"
 						
-*           `noi2' reg yg ag bg cg in 1/`lastg', noconstant
             qui reg `yg' `ag' `bg' `cg' in 1/`lastg', noconstant
             est store gqg
             mat `gqg' = e(b)
@@ -333,7 +344,6 @@ quietly {
 			label variable `x1g'  	"B"
 			label variable `x2g'	"C"
 			
-*           `noi2' reg yg2 x1g x2g  in 1/`lastg'
             qui reg `yg2' `x1g' `x2g'  in 1/`lastg'
             est store blcg
             mat `cofbg' = e(b)
@@ -564,118 +574,6 @@ quietly {
         	local elspgginib   = 2*(1+((`mu'/`z')-1)*(`PgBeta'/`FgtBeta'))
 
 
-        *********************************************************
-        **  Checking for consistency of lorenz curve estimation (section 4)
-        *********************************************************
-
-        ***********************
-        /* GQ Lorenz Curve */
-        ***********************
-        quietly {
-
-            noi di ""
-            noi di ""
-            noi di as text "Checking for consistency of lorenz curve estimation: " as res "GQ Lorenz Curve"
-
-            /** Condition 1 */
-            if (`e' < 0) {
-                noi di as text "L(0;pi)=0: " as res  "OK"
-                local ccheck1 = 1
-            }
-            else {
-                noi di as text "L(0;pi)=0: " as err "FAIL"
-                local ccheck1 = 0
-            }
-
-            /** Condition 2 */
-            local t = (`a'+`c')
-            if (`t' >= 1) {
-                noi di as text "L(1;pi)=1: " as res "OK (value=" %9.4f `t' ")"
-                local ccheck2 = 1
-            }
-            else {
-                noi di as text "L(1;pi)=1: " as err "FAIL (value=" %9.4f `t' ")"
-                local ccheck2 = 0
-            }
-
-            /** Condition 3 */
-            if (`c' >= 0) {
-                noi di as text "L'(0+;pi)>=0: " as res  "OK"
-                local ccheck3 = 1
-            }
-            else {
-                noi di as text "L'(0+;pi)>=0: " as err "FAIL"
-                local ccheck3 = 0
-            }
-
-
-            /** Condition 4 */
-
-            if ( `m' < 0 | (( 0 < `m' <(`n'^2/(4*`e'^2)))	& `n' >= 0) | ((0 < `m' < (-`n'/2)) & (`m' < (`n'^2 /(4*`e'^2))))) {
-                noi di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
-                local ccheck4 = 1
-            }
-            else {
-                noi di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
-                local ccheck4 = 0
-            }
-
-        }
-
-        ***********************
-        /* Beta Lorenz curve */
-        ***********************
-
-            noi di ""
-            noi di as text "Checking for consistency of lorenz curve estimation: " as res "Beta Lorenz curve"
-
-        /** Condition 1 */
-        * automatically satisfied by the functional form
-
-        /** Condition 2 */
-        * automatically satisfied by the functional form
-
-        /** Condition 3 */
-        	* We check the validity of the Beta Lorenz curve
-        	local check1 = 1- `aatheta'*.001^`aagama'*.999^`aadelta'*(`aagama'/.001-`aadelta'/.999)
-
-        /** Condition 4 */
-
-        	local check2 = 0
-        	local i=.01
-        	while `i'<1{
-        		local chk = `aatheta'*`i'^`aagama'*(1-`i')^`aadelta'*((`aagama'*(1-`aagama')/`i'^2)+(2*`aagama'*`aadelta'/*
-        		*//(`i'*(1-`i')))+(`aadelta'*(1-`aadelta')/(1-`i')^2))
-        		if `chk'<0{
-        			local check2=1
-        		}
-        		else{
-        		}
-        		local i=`i'+.01
-        	}
-
-        noi di as text "L(0;pi)=0: " as res "OK (automatically satisfied by the functional form)"
-
-        noi di as text "L(1;pi)=1: " as res "OK (automatically satisfied by the functional form)"
-
-        if `check1'>=0  {
-            noi di as text "L'(0+;pi)>=0: " as res  "OK"
-			local bcheck3 = 1
-        }
-        else {
-            noi di as text "L'(0+;pi)>=0: " as err "FAIL "
-			local bcheck3 = 0
-        }
-
-        if `check2'==0 {
-            noi di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
-			local bcheck4 = 1
-        }
-        else {
-            noi di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
-			local bcheck4 = 0
-        }
-
         /**************************************************
         /* Choice of the Lorenz curve                   */
         **************************************************
@@ -730,10 +628,10 @@ quietly {
         else {
             noi di as res "Beta has a lower statistic"
         }
-
-        ****************************************/
-        ** Output
-        ****************************************
+*/
+*-----------------------------------------------------------------------------
+ * 	Output
+*-----------------------------------------------------------------------------
 
         /*** Display results */
 
@@ -839,7 +737,7 @@ quietly {
         label define var 3 "FGT(2)", add modify
         label define var 4 "Gini", add modify
 
-        label define model 0 "Microdata", add modify
+        label define model 0 "Unit Record", add modify
         label define model 1 "QG Lorenz Curve", add modify
         label define model 2 "Beta Lorenz Curve", add modify
 
@@ -861,7 +759,33 @@ quietly {
 		label var `var'   Indicator
 
 		
-        /*** Display Regression results */
+*-----------------------------------------------------------------------------
+* Display Lorenz
+*-----------------------------------------------------------------------------
+		 
+		label var `pg' p
+		label var `Lg' Lorenz
+	
+		format `pg' %16.2f
+		format `Lg' %16.3f  
+	
+		noi di as res "Lorenz"
+		
+		noi di as text "{hline 15}    Distribution    {hline 15}"
+		noi di as text _col(5) "i "    _col(15) "P"   _col(40) "L" 
+		noi di as text "{hline 50}"
+		
+		forvalues l = 1(1)`bins' {
+			local P = `pg' in `l'
+			local L = `Lg' in `l'
+			noi di as text _col(5) "`l'"  as res  _col(15) %5.4f `P'   _col(40) %5.4f `L'
+		}
+		
+		noi di as text "{hline 50}"
+		
+*-----------------------------------------------------------------------------
+* Display Regression results 
+*-----------------------------------------------------------------------------
 		 
 	if ("`grouped'" == "grouped") {
 		 
@@ -869,15 +793,15 @@ quietly {
 		`noi2' di ""
         `noi2' di as text "Estimation: " as res "GQ Lorenz Curve (grouped data)"
 		`noi2' estout  gqg, cells("b(star fmt(%9.3f)) se t p")                ///
-			  stats(r2_a N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
-			  legend label  varlabels(_cons A)   order(A B C) 
+			  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
+			  legend label  
 
 		`noi2' di ""
         `noi2' di ""
         `noi2' di as text "Estimation: " as res "Beta Lorenz Curve (Grouped data)"
 		`noi2' estout blcg, cells("b(star fmt(%9.3f)) se t p")                ///
-			  stats(r2_a N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
-			  legend label  varlabels(_cons A)  order( _cons  `x1' `x2') 
+			  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared" F-sta RMSE MSS RSS Obs))      ///
+			  legend label  varlabels(_cons A)  
 
 	}
 
@@ -887,19 +811,21 @@ quietly {
         `noi2' di ""
         `noi2' di as text "Estimation: " as res "GQ Lorenz Curve"
 		`noi2' estout  gq, cells("b(star fmt(%9.3f)) se t p")                ///
-			  stats(r2_a N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
-			  legend label  varlabels(_cons A)   order(A B C) 
+			  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared" F-sta RMSE MSS RSS Obs))      ///
+			  legend label    
 
 		`noi2' di ""
         `noi2' di ""
         `noi2' di as text "Estimation: " as res "Beta Lorenz Curve"
 		`noi2' estout blc, cells("b(star fmt(%9.3f)) se t p")                ///
-			  stats(r2_a N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
-			  legend label  varlabels(_cons A)  order( _cons  `x1' `x2') 
+			  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared" F-sta RMSE MSS RSS Obs))      ///
+			  legend label  varlabels(_cons A)  
 
 	}
 	
-        /*** Display POverty and Inequality Results */
+*-----------------------------------------------------------------------------
+* Display POverty and Inequality Results 
+*-----------------------------------------------------------------------------
 		
         noi di ""
         noi di ""
@@ -907,14 +833,135 @@ quietly {
         noi tabdisp `var' `model' if `var' != . & `type' == 1, cell(`value')
         noi di "Mean Income/Expenditure: " as res %16.2f `mu'
 
-        /*** Display Elasticities */
+*-----------------------------------------------------------------------------
+* Display Elasticities 
+*-----------------------------------------------------------------------------
 
         noi di ""
         noi di ""
         noi di "Estimated Elasticities:"
         noi tabdisp `var' `model' `type' if `var' != . & `type' != 1 & `value' != . , cell(`value')
+		
+*-----------------------------------------------------------------------------
+*  Checking for consistency of lorenz curve estimation (section 4)
+*-----------------------------------------------------------------------------
 
-        /*** Store results */
+		noi di as text "Estimation Validity"
+
+        ***********************
+        /* GQ Lorenz Curve */
+        ***********************
+        quietly {
+
+            noi di ""
+            noi di ""
+            noi di as text "Checking for consistency of lorenz curve estimation: " as res "GQ Lorenz Curve"
+
+            /** Condition 1 */
+            if (`e' < 0) {
+                noi di as text "L(0;pi)=0: " as res  "OK"
+                local ccheck1 = 1
+            }
+            else {
+                noi di as text "L(0;pi)=0: " as err "FAIL"
+                local ccheck1 = 0
+            }
+
+            /** Condition 2 */
+            local t = (`a'+`c')
+            if (`t' >= 1) {
+                noi di as text "L(1;pi)=1: " as res "OK (value=" %9.4f `t' ")"
+                local ccheck2 = 1
+            }
+            else {
+                noi di as text "L(1;pi)=1: " as err "FAIL (value=" %9.4f `t' ")"
+                local ccheck2 = 0
+            }
+
+            /** Condition 3 */
+            if (`c' >= 0) {
+                noi di as text "L'(0+;pi)>=0: " as res  "OK"
+                local ccheck3 = 1
+            }
+            else {
+                noi di as text "L'(0+;pi)>=0: " as err "FAIL"
+                local ccheck3 = 0
+            }
+
+
+            /** Condition 4 */
+
+            if ( `m' < 0 | (( 0 < `m' <(`n'^2/(4*`e'^2)))	& `n' >= 0) | ((0 < `m' < (-`n'/2)) & (`m' < (`n'^2 /(4*`e'^2))))) {
+                noi di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
+                local ccheck4 = 1
+            }
+            else {
+                noi di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
+                local ccheck4 = 0
+            }
+
+        }
+
+        ***********************
+        /* Beta Lorenz curve */
+        ***********************
+
+        noi di ""
+        noi di as text "Checking for consistency of lorenz curve estimation: " as res "Beta Lorenz curve"
+
+        /** Condition 1 */
+        * automatically satisfied by the functional form
+
+        /** Condition 2 */
+        * automatically satisfied by the functional form
+
+        /** Condition 3 */
+        	* We check the validity of the Beta Lorenz curve
+        	local check1 = 1- `aatheta'*.001^`aagama'*.999^`aadelta'*(`aagama'/.001-`aadelta'/.999)
+
+        /** Condition 4 */
+
+        	local check2 = 0
+        	local i=.01
+        	while `i'<1{
+        		local chk = `aatheta'*`i'^`aagama'*(1-`i')^`aadelta'*((`aagama'*(1-`aagama')/`i'^2)+(2*`aagama'*`aadelta'/*
+        		*//(`i'*(1-`i')))+(`aadelta'*(1-`aadelta')/(1-`i')^2))
+        		if `chk'<0{
+        			local check2=1
+        		}
+        		else{
+        		}
+        		local i=`i'+.01
+        	}
+
+        noi di as text "L(0;pi)=0: " as res "OK (automatically satisfied by the functional form)"
+
+        noi di as text "L(1;pi)=1: " as res "OK (automatically satisfied by the functional form)"
+
+        if `check1'>=0  {
+            noi di as text "L'(0+;pi)>=0: " as res  "OK"
+			local bcheck3 = 1
+        }
+        else {
+            noi di as text "L'(0+;pi)>=0: " as err "FAIL "
+			local bcheck3 = 0
+        }
+
+        if `check2'==0 {
+            noi di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
+			local bcheck4 = 1
+        }
+        else {
+            noi di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
+			local bcheck4 = 0
+        }
+
+		noi di ""
+		noi di ""
+				
+*-----------------------------------------------------------------------------
+* Store results 
+*-----------------------------------------------------------------------------
 
 		mkmat  `var' `model' `type' `value' if `value' != ., matrix(`tmp') 
 		matrix colnames `tmp' = indicator model type value
