@@ -37,10 +37,52 @@ foreach yr in 2011 2013 2015 2017 {
 }
 
 *-----------------------------------------------------------------------------
+*	Learning Distribution - 5th Grade
+*-----------------------------------------------------------------------------
+
+clear
+forvalues year=2011(2)2017 {
+  append using "${clone}/02_rawdata/INEP_SAEB/Downloads/SAEB_ALUNO_`year'.dta"
+}
+keep if in_situacao_censo == 1 & idgrade==5
+keep year id* private* score_lp learner_weight_lp
+
+sample 10 , by(year)
+
+graph twoway		///
+	(kdensity score_lp [aw=learner_weight_lp] if year==2011) 	///
+	(kdensity score_lp [aw=learner_weight_lp] if year==2013) 	///
+	(kdensity score_lp [aw=learner_weight_lp] if year==2015) 	///
+	(kdensity score_lp [aw=learner_weight_lp] if year==2017), 	///
+			xline(200) ///
+			legend(label(1 "2011") label(2 "2013") label(3 "2015") label(4 "2017"))
+	
+*-----------------------------------------------------------------------------
+*	Learning Distribution - 9th Grade
+*-----------------------------------------------------------------------------
+
+clear
+forvalues year=2011(2)2017 {
+  append using "${clone}/02_rawdata/INEP_SAEB/Downloads/SAEB_ALUNO_`year'.dta"
+}
+keep if in_situacao_censo == 1 & idgrade==9
+keep year id* private* score_lp learner_weight_lp
+
+sample 10 , by(year)
+
+graph twoway		///
+	(kdensity score_lp [aw=learner_weight_lp] if year==2011) ///
+	(kdensity score_lp [aw=learner_weight_lp] if year==2013) ///
+	(kdensity score_lp [aw=learner_weight_lp] if year==2015) ///
+	(kdensity score_lp [aw=learner_weight_lp] if year==2017), 	///
+			xline(200) ///
+			legend(label(1 "2011") label(2 "2013") label(3 "2015") label(4 "2017"))
+
+*-----------------------------------------------------------------------------
 * Learning Poverty Simulation (distributionally neutral)
 
 use "$output\score2017", clear
-groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) bins(10) benchmark group nofigure regress nofigures
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) bins(10) benchmark group regress nofig
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) bins(15) mu(207.9) benchmark group 
 
 
