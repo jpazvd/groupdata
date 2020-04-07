@@ -23,7 +23,7 @@ program define groupdata, rclass
 
     version 8.0
 
-    syntax varlist(numeric min=1 max=1)                 ///
+    syntax varlist(numeric min=1 max=1)         ///
                  [in] [if]                      ///
                  [fweight pweight aweight]      ///
                  ,                              ///
@@ -38,6 +38,16 @@ program define groupdata, rclass
 					]
 
 quietly {
+
+
+	  *-----------------------------------------------------------------------------
+	  * Check options
+	  
+	  if (`mu' != -99) & ("`benchmark'" != "") {
+        di as err "option benchmark only works with original mean."
+        exit 198
+	  }
+
 
 	  *-----------------------------------------------------------------------------
 	  * Download and install required user written ado's
@@ -71,6 +81,7 @@ quietly {
 	
 		tempvar  temp touse rnd lninc  pp pw L p y1 y2 a b c  x1 x2  Lg pg yg ag bg cg yg2 x1g x2g  type model var value
 	
+	
 		**********************************
 		* Locals 
 		
@@ -85,12 +96,6 @@ quietly {
         local pop =subinstr("`exp'","=","",.)
     }
 
-    tokenize `varlist'
-    local inc `1'
-
-    mark `touse' `if' `in' [`weight'`exp']
-    markout `touse' `varlist'
-
     if ("`regress'" != "") {
         loc noi2 "noi "
     }
@@ -98,36 +103,42 @@ quietly {
         loc noi2 ""
     }
 
+    tokenize `varlist'
+    local inc `1'
+
+    mark `touse' `if' `in' [`weight'`exp']
 	
+    markout `touse' `varlist'
+
 		**********************************
 		* Microdata
 		
 		if ("`benchmark'" == "benchmark") {
-			apoverty `inc' [`weight'`exp'] , line(`z')  fgt3  pgr
+			apoverty `inc' [`weight'`exp'] 	if `touse', line(`z')  fgt3  pgr
 			local afgt0 = r(head_1) 
 			local afgt1 = r(pogapr_1) 
 			local afgt2 = r(fogto3_1) 
-			ainequal `inc' [`weight'`exp'] 
+			ainequal `inc' [`weight'`exp']  if `touse'
 			local agini = r(gini_1) 
 		}
 
         **********************************
 
-        gen double `rnd' = uniform()
-        gen `lninc' = ln(`inc') 	
+        gen double `rnd' = uniform()		if `touse'
+        gen `lninc' = ln(`inc') 			if `touse'
 
         sort `inc' `rnd'
 
         if (`mu' == -99) {
-            sum `inc' [`weight'`exp']
+            sum `inc' [`weight'`exp'] 		if `touse'
             local mu = `r(mean)'
 
-            sum `lnmpce' [`weight'`exp']
+            sum `lnmpce' [`weight'`exp']	if `touse'
             local lnmu = r(mean)
             local lnsd = r(sd)
         }
         else {
-            sum `lnmpce' [`weight'`exp']
+            sum `lnmpce' [`weight'`exp']	if `touse'
             local lnmu = ln(`mu')
             local lnsd = r(sd)
         }
@@ -142,49 +153,71 @@ quietly {
             ** cumulative distribution
             ************************************
 
-            egen double `pw' = pc(`inc'), prop
-            egen double `pp' = pc(`pop'), prop
+            egen double `pw' = pc(`inc')			if `touse', prop
+            egen double `pp' = pc(`pop')			if `touse', prop
 
-            gen double `L' = `pw'
-            replace `L' = `pw'+`L'[_n-1] in 2/l
+            gen double `L' = `pw'					if `touse'
+            replace `L' = `pw'+`L'[_n-1] in 2/l		if `touse'
 
-            gen double `p' = `pp'
-            replace `p' = `pp'+`p'[_n-1] in 2/l
+            gen double `p' = `pp'					if `touse'
+            replace `p' = `pp'+`p'[_n-1] in 2/l		if `touse'
 
             ************************************
             ** generate variables (GQ Lorenz Curve)
             ************************************
 
-            gen double `y1' = `L'*(1-`L')
-            gen double `a' = ((`p'^2)-`L')
-            gen double `b' = `L'*(`p'-1)
-            gen double `c' = (`p'-`L')
+            gen double `y1' = `L'*(1-`L')			if `touse'
+            gen double `a' = ((`p'^2)-`L')			if `touse'
+            gen double `b' = `L'*(`p'-1)			if `touse'
+            gen double `c' = (`p'-`L')				if `touse'
 
             ************************************
             ** generate variables Beta Lorenz Curve
             ************************************
 
-            gen double `y2'=ln(`p'-`L')
-            gen double `x1'=ln(`p')
-            gen double `x2'=ln(1-`p')
-
-            ************************************
+            gen double `y2'=ln(`p'-`L')				if `touse'
+            gen double `x1'=ln(`p')					if `touse'
+            gen double `x2'=ln(1-`p')				if `touse'
 
             local last = _N-1
+
+            ************************************
+			** Plot Figure 
+            ************************************
+
+			if ("`nofigure'" == "") {
+			    
+				local mustr = strofreal(`mu',"%9.2f")
+				local intercept00 = _N + 1
+				replace `L' = 0 in `intercept00'
+				replace `p' = 0 in `intercept00'
+				
+				graph twoway lowess `L' `p'		if `touse', 						///
+					ytitle("Lorenz") xtitle("Population (Cumulative)") 				///
+					note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
+								
+				kdensity `inc' 					if `touse', 						///
+					xline(`z') xtitle("`inc'") name(pdf, replace)
+
+				graph twoway lowess `inc' `p'	if `touse', 						///
+					yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
+					note("mean: `mustr' [`bins' bins]") name("pen", replace)
+	
+			}
 
             ************************************
             ** Estimation: GQ Lorenz Curve
             ************************************
 
-			gen y1 = `y1' 
-			gen  a = `a' 
-			gen  b = `b' 
-			gen  c = `c'
+			gen y1 = `y1' 							if `touse'
+			gen  a = `a' 							if `touse'
+			gen  b = `b' 							if `touse'
+			gen  c = `c'							if `touse'
 
             `noi2' di ""
             `noi2' di ""
             `noi2' di as text "Estimation: " as res "GQ Lorenz Curve"
-            `noi2' reg y1 a b c in 1/`last', noconstant
+            `noi2' reg y1 a b c 	in 1/`last'		if `touse', noconstant
 *            `noi2' reg `y1' `a' `b' `c' in 1/`last', noconstant
             est store gq
             mat `gq' = e(b)
@@ -194,14 +227,14 @@ quietly {
             ** Estimation: Beta Lorenz Curve
             ************************************
 
-			gen y2 = `y2' 
-			gen x1 = `x1' 
-			gen x2 = `x2'
+			gen y2 = `y2' 							if `touse'
+			gen x1 = `x1' 							if `touse'
+			gen x2 = `x2'							if `touse'
 			
             `noi2' di ""
             `noi2' di ""
             `noi2' di as text "Estimation: " as res "Beta Lorenz Curve"
-            `noi2' reg y2 x1 x2 in 1/`last'
+            `noi2' reg y2 x1 x2 	in 1/`last'		if `touse'
  *           `noi2' reg `y2' `x1' `x2' in 1/`last'
             est store beta
             mat `cofb' = e(b)
@@ -225,13 +258,13 @@ quietly {
 					noi di ""
 					noi di "... creating groupped data with `bins' bins."
 					noi di ""
-					alorenz `inc' [`weight'`exp'], points(`bins') 
+					alorenz `inc' [`weight'`exp']	if `touse', points(`bins') 
 				}
 				else {
 					noi di ""
 					noi di "... creating groupped data with `bins' bins."
 					noi di ""
-					alorenz `inc' [`weight'`exp'], points(`bins') 
+					alorenz `inc' [`weight'`exp']	if `touse', points(`bins') 
 				}
 			}
 			
@@ -259,18 +292,26 @@ quietly {
 
             local lastg = `bins'-1
 
+            ************************************
 			** Plot Figure 
+            ************************************
+
 			if ("`nofigure'" == "") {
 				local mustr = strofreal(`mu',"%9.2f")
 				local intercept00 = `bins'+1
 				replace `Lg' = 0 in `intercept00'
 				replace `pg' = 0 in `intercept00'
 				
-				graph twoway lowess `Lg' `pg', ytitle("Lorenz") xtitle("Population (Cumulative)") note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
+				graph twoway lowess `Lg' `pg', 										///
+					ytitle("Lorenz") xtitle("Population (Cumulative)") 				///
+					note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
 								
-				kdensity `A'6, xline(`z') xtitle("`inc'") name(pdf, replace)
+				kdensity `A'6, 														///
+					xline(`z') xtitle("`inc'") name(pdf, replace)
 
-				graph twoway lowess `A'3 `pg', yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") note("mean: `mustr' [`bins' bins]") name("pen", replace)
+				graph twoway lowess `A'3 `pg', 										///
+					yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
+					note("mean: `mustr' [`bins' bins]") name("pen", replace)
 	
 			}
 
