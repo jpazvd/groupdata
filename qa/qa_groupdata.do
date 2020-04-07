@@ -78,6 +78,29 @@ graph twoway		///
 			xline(200) ///
 			legend(label(1 "2011") label(2 "2013") label(3 "2015") label(4 "2017"))
 
+
+*-----------------------------------------------------------------------------
+* Learning Poverty Simulation (distributionally neutral) - generate group data
+
+use "$output\score2017", clear
+
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group 
+
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmark nofigure 
+
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmark nofigure bins(15)
+
+* generated groupped data for tests
+mat a = r(data)
+svmat double a, names(col)
+			
+			
+groupdata mean_score_lp , z(200) mu(214.28) nofigure type(5)
+			
+			
+* Lorenz			
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) benchmark group nofigure
+			
 *-----------------------------------------------------------------------------
 * Learning Poverty Simulation (distributionally neutral)
 
