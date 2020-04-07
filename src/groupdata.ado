@@ -39,6 +39,16 @@ program define groupdata, rclass
 
 quietly {
 
+
+	  *-----------------------------------------------------------------------------
+	  * Check options
+	  
+	  if (`mu' != -99) & ("`benchmark'" != "") {
+        di as err "option benchmark only works with original mean."
+        exit 198
+	  }
+
+
 	  *-----------------------------------------------------------------------------
 	  * Download and install required user written ado's
 	  *-----------------------------------------------------------------------------
