@@ -36,8 +36,19 @@ foreach yr in 2011 2013 2015 2017 {
 use "$output\score2017", clear
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) benchmark group 
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 9, z(200) benchmark group 
-
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) mu(207.9) benchmark group 
+
+
+use "$output\score2015", clear
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmark
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) mu(214.8) group 
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) mu(207.9) group 
+
+
+use "$output\score2013", clear
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmark
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) mu(214.8) group 
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) mu(207.9) group 
 
 
 use "$output\score2011", clear
