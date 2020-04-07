@@ -84,18 +84,29 @@ graph twoway		///
 
 use "$output\score2017", clear
 
+* check group data estiamtes from unit records 
+
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group 
 
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmark nofigure 
 
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmark nofigure bins(15)
 
-* generated groupped data for tests
+* generated groupped data for check from group data to group data estimates
 mat a = r(data)
 svmat double a, names(col)
-			
-			
-groupdata mean_score_lp , z(200) mu(214.28) nofigure type(5)
+						
+* mean  (Type 5: OK) noweight; pw; fw
+groupdata mean_score_lp , z(200) mu(214.28) nofigure type(5) nochecks noelasticities
+
+* max 	(Type 6: OK)
+groupdata maxscore_lp1 , z(200) mu(214.28) nofigure type(5) nochecks noelasticities
+groupdata maxscore_lp1 , z(200) mu(214.28) nofigure type(6) nochecks noelasticities min(109.5313) max(336.978)
+
+
+graph twoway		///
+	(kdensity mean_score_lp ) ///
+	(kdensity maxscore_lp1) 
 			
 			
 * Lorenz			

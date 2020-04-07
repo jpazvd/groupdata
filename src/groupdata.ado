@@ -3,8 +3,10 @@
 *   Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative 
 *		proportion of income held by that proportion of the population
 *   Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype 
-*   5 grouped data: W=Percentage of the population in a given interval of 
+*   Type 5 grouped data: W=Percentage of the population in a given interval of 
 *		incomes, X=The mean income of that interval.
+*   Type 6 grouped data: W=Percentage of the population in a given interval of 
+*		incomes, X=The max income of that interval.
 *   Unit record data: Percentage of the population with same income level, 
 *		The income level.
 *		improve the layout
@@ -46,6 +48,11 @@ program define groupdata, rclass
 						 NOFIGures				///
 						 UNITRECord				///
 						 type(string) 			///
+						 noelasticities			///
+						 nolorenz				///
+						 nochecks				///
+						 min(string)			///
+						 max(string)			///
 					]
 
 quietly {
@@ -106,6 +113,11 @@ quietly {
 		**********************************
 		* Locals 
 		
+		* keep original weights
+	local wtg2 = "`weight'"
+	local exp2 = subinstr("`exp'","=","",.)
+
+		* set-up weights when it is not available
     if ("`weight'" == "") {
         tempvar wtg
         gen `wtg' = 1
@@ -304,47 +316,143 @@ quietly {
 				noi di ""
 			}
 		
-			
+            ************************************
+            ** number of bins
+            ************************************
+
+			sum `inc'
+			local bins = r(N)
+            local last = `bins'-1
+
             ************************************
             ** Type5 (mean value by bin)
             ************************************
 			
-			sum `inc'
-			local bins = r(N)
-			local exp2 = subinstr("`exp'","=","",.)
-			
-			if ("`type5'" == "type5") {
+			if ("`type'" == "5") {
 				
-				if ("`wtg'" == "1") {
-					gen double `pg' 	= 	1/`bins'
-					sum `L'
+				if ("`wtg2'" == "") {
+
+					gen double 	`pg' 	= 	1/`bins'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+
+					sum `inc'
 					local sumL = r(sum)
-					gen double `Lg' = `L'/`sumL'
+					gen double 	`Lg' = `inc'/`sumL'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+				
 				}
-				if ("`weight'" == "pw") {
-					gen `pg' = `exp2'
-					sum `L' 	[`weight'`exp']
+
+				if ("`wtg2'" == "pw") {
+
+					gen 		`pg' = `exp2'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+					
+					sum `inc' 	[`weight'`exp']
 					local sumL = r(sum)
-					gen double `Lg' = `L'/`sumL'
+					gen double 	`Lg' = `inc'/`sumL'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+
 				}
-				if ("`weight'" == "fw") {
+				
+				if ("`wtg2'" == "fw") {
+					
 					sum `exp2'
 					local sumP = r(sum)
-					gen double `pg' = `exp2'/`sumP'
-					sum `L' 	[`weight'`exp']
+					gen double 	`pg' = `exp2'/`sumP'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+
+					sum `inc' 	[`weight'`exp']
 					local sumL = r(sum)
-					gen doulbe `Lg' = `L'/`sumL'
+					gen doulbe 	`Lg' = `inc'/`sumL'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+				
 				}
-				if ("`weight'" == "aw") {
+				
+				if ("`wtg2'" == "aw") {
+				
 					di err "This option does not accept AW weights. Please use either PW, FW or no weights."
+				
 				}
 			}
 			
 			
+						
+            ************************************
+            ** Type6 (mean value by bin)
+            ************************************
+			
+			tempvar inc2 delta
+			
+			if ("`type'" == "6") {
+				
+				if ("`wtg2'" == "") {
+					
+					local bins = `bins'+1
+					local last = `last'+1
+
+					noi di "min: " `min'
+					noi di "max: " `max'
+					noi di "bins: " `bins'
+					
+					gen double 	`pg' 	= 	1/`bins'
+
+					gen 	double `delta' = .
+					replace `delta' = (`inc'[_n]-`min')			/2 	in 1
+					replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'
+					replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'
+					
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+					
+					gen double `inc2' = .
+					replace `inc2' = `inc' - `delta'				in 1/`last'
+					replace `inc2' = `max' - `delta'				in `bins'
+					
+					sum `inc2'
+					local sumL = r(sum)
+					gen double 	`Lg' = `inc2'/`sumL'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+					
+					*noi list `pg' mean_score_lp `inc' `delta' `inc2' `Lg' in 1/`bins'
+				
+				}
+
+				if ("`wtg2'" == "pw") {
+
+					gen 		`pg' = `exp2'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+					
+					sum `inc' 	[`weight'`exp']
+					local sumL = r(sum)
+					gen double 	`Lg' = `inc'/`sumL'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+
+				}
+				
+				if ("`wtg2'" == "fw") {
+					
+					sum `exp2'
+					local sumP = r(sum)
+					gen double 	`pg' = `exp2'/`sumP'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+
+					sum `inc' 	[`weight'`exp']
+					local sumL = r(sum)
+					gen doulbe 	`Lg' = `inc'/`sumL'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+				
+				}
+				
+				if ("`wtg2'" == "aw") {
+				
+					di err "This option does not accept AW weights. Please use either PW, FW or no weights."
+				
+				}
+			}
+			
             ************************************
             ** cumulative distribution
             ************************************
-
+/*
             egen double `pw' = pc(`inc')			if `touse', prop
             egen double `pp' = pc(`pop')			if `touse', prop
 
@@ -353,25 +461,29 @@ quietly {
 
             gen double `p' = `pp'					if `touse'
             replace `p' = `pp'+`p'[_n-1] in 2/l		if `touse'
+*/
+
+            gen double `L' = `Lg'					
+            gen double `p' = `pg'					
+
+
 
             ************************************
             ** generate variables (GQ Lorenz Curve)
             ************************************
 
-            gen double `y1' = `L'*(1-`L')			if `touse'
-            gen double `a' = ((`p'^2)-`L')			if `touse'
-            gen double `b' = `L'*(`p'-1)			if `touse'
-            gen double `c' = (`p'-`L')				if `touse'
+            gen double `y1' = `L'*(1-`L')			
+            gen double `a' = ((`p'^2)-`L')			
+            gen double `b' = `L'*(`p'-1)			
+            gen double `c' = (`p'-`L')				
 
             ************************************
             ** generate variables Beta Lorenz Curve
             ************************************
 
-            gen double `y2'=ln(`p'-`L')				if `touse'
-            gen double `x1'=ln(`p')					if `touse'
-            gen double `x2'=ln(1-`p')				if `touse'
-
-            local last = _N-1
+            gen double `y2'=ln(`p'-`L')				
+            gen double `x1'=ln(`p')					
+            gen double `x2'=ln(1-`p')				
 
             ************************************
 			** Plot Figure 
@@ -941,20 +1053,18 @@ quietly {
 * Display Lorenz
 *-----------------------------------------------------------------------------
 
-*	if ("`grouped'" == "grouped") {
-
-		 
+	if ("`nolorenz'" == "") {
+		
 		label var `pg' p
 		label var `Lg' Lorenz
 	
 		format `pg' %16.2f
 		format `Lg' %16.3f  
 	
-		noi di as res "Lorenz"
-		
-		noi di as text "{hline 15}    Distribution    {hline 15}"
-		noi di as text _col(5) "i "    _col(15) "P"   _col(40) "L" 
-		noi di as text "{hline 50}"
+		noi di 			""
+		noi di as text 	"{hline 15}    Distribution    {hline 15}"
+		noi di as text 	_col(5) "i "    _col(15) "P"   _col(40) "L" 
+		noi di as text 	"{hline 50}"
 		
 		forvalues l = 1(1)`bins' {
 			local P = `pg' in `l'
@@ -962,9 +1072,9 @@ quietly {
 			noi di as text _col(5) "`l'"  as res  _col(15) %5.4f `P'   _col(40) %5.4f `L'
 		}
 		
-		noi di as text "{hline 50}"
-
-*	}
+		noi di as text 	"{hline 50}"
+	
+	}
 	
 *-----------------------------------------------------------------------------
 * Display Regression results 
@@ -1019,15 +1129,21 @@ quietly {
 *-----------------------------------------------------------------------------
 * Display Elasticities 
 *-----------------------------------------------------------------------------
+	
+	if ("`noelasticities'" == "") {
 
         noi di ""
         noi di ""
         noi di "Estimated Elasticities:"
         noi tabdisp `var' `model' `type2' if `var' != . & `type2' != 1 & `value' != . , cell(`value')
-		
+
+	}
+	
 *-----------------------------------------------------------------------------
 *  Checking for consistency of lorenz curve estimation (section 4)
 *-----------------------------------------------------------------------------
+
+	if ("`nochecks'" == "") {
 
 		noi di as text "Estimation Validity"
 
@@ -1141,6 +1257,8 @@ quietly {
 
 		noi di ""
 		noi di ""
+		
+	}
 				
 *-----------------------------------------------------------------------------
 * Store results 
@@ -1192,6 +1310,7 @@ quietly {
 	return add
 
 	cap: drop yg ag bg cg yg2 x1g x2g
+
 	cap: drop y1 a b c y2 x1 x2
 
 end
