@@ -40,9 +40,8 @@ foreach yr in 2011 2013 2015 2017 {
 * Learning Poverty Simulation (distributionally neutral)
 
 use "$output\score2017", clear
-groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) benchmark group 
-groupdata score_lp [aw=learner_weight_lp] if idgrade == 9, z(200) benchmark group 
-groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) mu(207.9) benchmark group 
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) bins(10) benchmark group nofigure regress nofigures
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) bins(15) mu(207.9) benchmark group 
 
 
 use "$output\score2015", clear
@@ -435,3 +434,21 @@ ac_prop_pop1	ac_prop_sc~1
     PG squared (FGT2)     -5.43152          2.53061
    ------------------------------------------------------
 
+
+*/
+   
+   
+estout gqg , cells(b(star fmt(%9.3f)) se(par))                ///
+          stats(r2_a N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
+          legend label collabels(none) varlabels(_cons Constant)
+
+		  
+		  
+estout blcg, cells(b(star fmt(%9.3f)) se(par))                ///
+          stats(r2_a N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
+          legend label collabels(none) varlabels(_cons Constant)
+
+		  
+	estout blcg, cells("b(star fmt(%9.3f)) se t p")                ///
+          stats(r2_a N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
+          legend label  varlabels(_cons Constant)

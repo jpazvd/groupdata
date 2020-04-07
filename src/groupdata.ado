@@ -1,5 +1,7 @@
 **********************************
-*! v 2.2   06apr2020				  by JPA     		*
+*! v 2.3   07apr2020				  by JPA     		*
+*!	improve the layout
+* v 2.2   06apr2020				  by JPA     		*
 *   dependencies checks run quietly
 *   apoverty and ainequal added to the dependencies check
 * v 2.1   05apr2020				  by JPA     		*
@@ -34,7 +36,7 @@ program define groupdata, rclass
                          BINs(real -99)         ///
                          REGress				///
 						 BENCHmark				///
-						 NOFIGure				///
+						 NOFIGures				///
 					]
 
 quietly {
@@ -53,7 +55,7 @@ quietly {
 	  * Download and install required user written ado's
 	  *-----------------------------------------------------------------------------
 	  * Fill this list will all user-written commands this project requires
-		  local user_commands groupfunction alorenz which_version apoverty ainequal
+		  local user_commands groupfunction alorenz which_version apoverty ainequal estout
 
 	  * Loop over all the commands to test if they are already installed, if not, then install
 		  qui foreach command of local user_commands {
@@ -77,7 +79,7 @@ quietly {
 		**********************************
 		* Temp names 
 		
-		tempname A  gq cofb cof  gqg cofbg
+		tempname A  gq cofb cof  gqg cofbg tmp
 	
 		tempvar  temp touse rnd lninc  pp pw L p y1 y2 a b c  x1 x2  Lg pg yg ag bg cg yg2 x1g x2g  type model var value
 	
@@ -209,16 +211,13 @@ quietly {
             ** Estimation: GQ Lorenz Curve
             ************************************
 
-			gen y1 = `y1' 							if `touse'
-			gen  a = `a' 							if `touse'
-			gen  b = `b' 							if `touse'
-			gen  c = `c'							if `touse'
+			label var `y1' 	"`inc'" 
+			label var `a'  	"A"
+			label var `b' 	"B"
+			label var `c'	"C"
 
-            `noi2' di ""
-            `noi2' di ""
-            `noi2' di as text "Estimation: " as res "GQ Lorenz Curve"
-            `noi2' reg y1 a b c 	in 1/`last'		if `touse', noconstant
-*            `noi2' reg `y1' `a' `b' `c' in 1/`last', noconstant
+*            reg y1 a b c 	in 1/`last'		if `touse', noconstant
+            qui reg `y1' `a' `b' `c' in 1/`last' if `touse', noconstant
             est store gq
             mat `gq' = e(b)
             mat `cof' = e(b)
@@ -227,15 +226,12 @@ quietly {
             ** Estimation: Beta Lorenz Curve
             ************************************
 
-			gen y2 = `y2' 							if `touse'
-			gen x1 = `x1' 							if `touse'
-			gen x2 = `x2'							if `touse'
+			label var `y2' 	"`inc'"
+			label var `x1'	"B"
+			label var `x2'	"C"
 			
-            `noi2' di ""
-            `noi2' di ""
-            `noi2' di as text "Estimation: " as res "Beta Lorenz Curve"
-            `noi2' reg y2 x1 x2 	in 1/`last'		if `touse'
- *           `noi2' reg `y2' `x1' `x2' in 1/`last'
+ *           `noi2' reg y2 x1 x2 	in 1/`last'		if `touse'
+            qui reg `y2' `x1' `x2' in 1/`last' if `touse'
             est store beta
             mat `cofb' = e(b)
 
@@ -319,16 +315,13 @@ quietly {
             ** Estimation: GQ Lorenz Curve (grouped data)
             ************************************
 			
-			gen yg = `yg' 
-			gen ag = `ag' 
-			gen bg = `bg' 
-			gen cg = `cg' 
+			label variable `yg'     "`inc'"
+			label variable `ag'		"A" 
+			label variable `bg' 	"B"
+			label variable `cg' 	"C"
 						
-            `noi2' di ""
-            `noi2' di ""
-            `noi2' di as text "Estimation: " as res "GQ Lorenz Curve (grouped data)"
-            `noi2' reg yg ag bg cg in 1/`lastg', noconstant
-*            `noi2' reg `yg' `ag' `bg' `cg' in 1/`lastg', noconstant
+*           `noi2' reg yg ag bg cg in 1/`lastg', noconstant
+            qui reg `yg' `ag' `bg' `cg' in 1/`lastg', noconstant
             est store gqg
             mat `gqg' = e(b)
 
@@ -336,15 +329,12 @@ quietly {
             ** Estimation: Beta Lorenz Curve (Grouped data)
             ************************************
 
-			gen yg2 = `yg2' 
-			gen x1g = `x1g' 
-			gen x2g = `x2g'
+			label variable `yg2' 	"`inc'"
+			label variable `x1g'  	"B"
+			label variable `x2g'	"C"
 			
-            `noi2' di ""
-            `noi2' di ""
-            `noi2' di as text "Estimation: " as res "Beta Lorenz Curve (Grouped data)"
-            `noi2' reg yg2 x1g x2g  in 1/`lastg'
-*            `noi2' reg `yg2' `x1g' `x2g'  in 1/`lastg'
+*           `noi2' reg yg2 x1g x2g  in 1/`lastg'
+            qui reg `yg2' `x1g' `x2g'  in 1/`lastg'
             est store blcg
             mat `cofbg' = e(b)
 
@@ -870,11 +860,54 @@ quietly {
 		label var `type'  Type
 		label var `var'   Indicator
 
+		
+        /*** Display Regression results */
+		 
+	if ("`grouped'" == "grouped") {
+		 
+        `noi2' di ""
+		`noi2' di ""
+        `noi2' di as text "Estimation: " as res "GQ Lorenz Curve (grouped data)"
+		`noi2' estout  gqg, cells("b(star fmt(%9.3f)) se t p")                ///
+			  stats(r2_a N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
+			  legend label  varlabels(_cons A)   order(A B C) 
+
+		`noi2' di ""
+        `noi2' di ""
+        `noi2' di as text "Estimation: " as res "Beta Lorenz Curve (Grouped data)"
+		`noi2' estout blcg, cells("b(star fmt(%9.3f)) se t p")                ///
+			  stats(r2_a N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
+			  legend label  varlabels(_cons A)  order( _cons  `x1' `x2') 
+
+	}
+
+	if ("`grouped'" == "") {
+
+		`noi2' di ""
+        `noi2' di ""
+        `noi2' di as text "Estimation: " as res "GQ Lorenz Curve"
+		`noi2' estout  gq, cells("b(star fmt(%9.3f)) se t p")                ///
+			  stats(r2_a N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
+			  legend label  varlabels(_cons A)   order(A B C) 
+
+		`noi2' di ""
+        `noi2' di ""
+        `noi2' di as text "Estimation: " as res "Beta Lorenz Curve"
+		`noi2' estout blc, cells("b(star fmt(%9.3f)) se t p")                ///
+			  stats(r2_a N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
+			  legend label  varlabels(_cons A)  order( _cons  `x1' `x2') 
+
+	}
+	
+        /*** Display POverty and Inequality Results */
+		
         noi di ""
         noi di ""
         noi di "Estimated Poverty and Inequality Measures:"
         noi tabdisp `var' `model' if `var' != . & `type' == 1, cell(`value')
         noi di "Mean Income/Expenditure: " as res %16.2f `mu'
+
+        /*** Display Elasticities */
 
         noi di ""
         noi di ""
@@ -883,6 +916,13 @@ quietly {
 
         /*** Store results */
 
+		mkmat  `var' `model' `type' `value' if `value' != ., matrix(`tmp') 
+		matrix colnames `tmp' = indicator model type value
+		
+		matrix rownames `tmp' = H PG SPG gini_ln hcrb PgBeta	FgtBeta	GiniBeta  elhmu	 elhgini	elpgmu	elpggini	elspgmu	elspggini	elhmub	elhginib	elpgmub	elpgginib	elspgmub	elspgginib fgt0 fgt1 fgt2 gini
+		
+		return matrix results = `tmp'
+		
         return scalar Hgq   = `H'*100
         return scalar PGgq  = `PG'*100
         return scalar SPGgq = `SPG'*100
