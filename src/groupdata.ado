@@ -1,5 +1,6 @@
 *-----------------------------------------------------------------------------
 *! v 2.3   08apr2020				  by JPA     		*
+*	Remove PW since it is not supported by SUMARIZE
 *   Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative 
 *		proportion of income held by that proportion of the population
 *   Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype 
@@ -36,7 +37,7 @@ program define groupdata, rclass
 
     syntax varlist(numeric min=1 max=1)         ///
                  [in] [if]                      ///
-                 [fweight pweight aweight]      ///
+                 [fweight aweight]      		///
                  ,                              ///
                          z(real)                ///
                     [							///
@@ -63,17 +64,29 @@ quietly {
 *-----------------------------------------------------------------------------
 
 	if (`mu' != -99) & ("`benchmark'" != "") {
-        di as err "option benchmark only works with original mean."
+		noi di ""
+        di as err "Option benchmark only works with original mean."
         exit 198
+		noi di ""
 	}
 	  
 	if (`mu' == -99) & ("`type'" != "") {
-        di as err "estimates based on group data require the user to provide the mean value of the distribution"
+		noi di ""
+        di as err "Estimates based on group data require the user to provide the mean value of the distribution"
         exit 198
+		noi di ""
 	}
 	if (strmatch(" 1 2 5 6","*`type'*") == 0) {
-        di as err "please select a valid data type. see help."
-        exit 198
+		noi di ""
+        di as err "Please select a valid data type. see help."
+		exit 198
+		noi di ""
+		noi di as text "Type 1 grouped data: " as res "P=Cumulative proportion of population, L=Cumulative proportion of income held by that proportion of the population" 
+		noi di as text "Type 2 grouped data: " as res "Q=Proportion of population, R=Proportion of incometype" 			
+		noi di as text "Type 5 grouped data: " as res "W=Percentage of the population in a given interval of incomes, X=The mean income of that interval"
+		noi di as text "Type 6 grouped data: " as res "W=Percentage of the population in a given interval of incomes, X=The max income of that interval"
+		noi di ""
+		
 	}
 
 *-----------------------------------------------------------------------------
@@ -102,46 +115,52 @@ quietly {
 		  }
 
 						
-		**********************************
-		* Temp names 
+*-----------------------------------------------------------------------------
+* 	Temp names 
+*-----------------------------------------------------------------------------
 		
 		tempname A  gq cofb cof  gqg cofbg tmp
 	
 		tempvar  temp touse rnd lninc  pp pw L p y1 y2 a b c  x1 x2  Lg pg yg ag bg cg yg2 x1g x2g  type2 model var value
 	
 	
-		**********************************
-		* Locals 
+*-----------------------------------------------------------------------------
+* 	Locals 
+*-----------------------------------------------------------------------------
 		
 		* keep original weights
-	local wtg2 = "`weight'"
-	local exp2 = subinstr("`exp'","=","",.)
+		local wtg2 = "`weight'"
+		local exp2 = subinstr("`exp'","=","",.)
 
 		* set-up weights when it is not available
-    if ("`weight'" == "") {
-        tempvar wtg
-        gen `wtg' = 1
-        loc weight "fw"
-        loc exp    "=`wtg'"
-        local pop "`wtg'"
-    }
-    else {
-        local pop =subinstr("`exp'","=","",.)
-    }
+		if ("`weight'" == "") {
+			tempvar wtg
+			gen `wtg' = 1
+			loc weight "fw"
+			loc exp    "=`wtg'"
+			local pop "`wtg'"
+		}
+		else {
+			local pop =subinstr("`exp'","=","",.)
+		}
 
-    if ("`regress'" != "") {
-        loc noi2 "noi "
-    }
-    else {
-        loc noi2 ""
-    }
+		if ("`regress'" != "") {
+			loc noi2 "noi "
+		}
+		else {
+			loc noi2 ""
+		}
 
-    tokenize `varlist'
-    local inc `1'
+*-----------------------------------------------------------------------------
+* 	Filters
+*-----------------------------------------------------------------------------
 
-    mark `touse' `if' `in' [`weight'`exp']
-	
-    markout `touse' `varlist'
+		tokenize `varlist'
+		local inc `1'
+
+		mark `touse' `if' `in' [`weight'`exp']
+		
+		markout `touse' `varlist'
 
 *-----------------------------------------------------------------------------
 * 	Data sort
@@ -157,8 +176,7 @@ quietly {
 * 	Mean values
 *-----------------------------------------------------------------------------
 
-
-        if (`mu' == -99) {
+	    if (`mu' == -99) {
             sum `inc' [`weight'`exp'] 		if `touse'
             local mu = `r(mean)'
 
@@ -310,47 +328,119 @@ quietly {
 			}
 			if ("`type'" == "5") {
 				noi di ""
-				noi di "5 grouped data: W=Percentage of the population in a given interval of incomes, X=The mean income of that interval"
+				noi di "Type 5 grouped data: W=Percentage of the population in a given interval of incomes, X=The mean income of that interval"
 			}
 			if ("`type'" == "6") {
-				noi di ""
+				noi di "Type 6 grouped data: W=Percentage of the population in a given interval of incomes, X=The max income of that interval"
 			}
-		
-            ************************************
-            ** number of bins
-            ************************************
 
-			sum `inc'
-			local bins = r(N)
-            local last = `bins'-1
-
+			************************************
+            ** Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative proportion of income held by that proportion of the population
             ************************************
-            ** Type5 (MEAN value by bin)
+			
+			if ("`type'" == "1") {
+					
+				sum `inc'
+				local bins = r(N)
+				local last = `bins'-1
+
+				
+				if ("`wtg2'" == "") {
+					di err "Type 1 only accepts accept AW."
+					exit 198
+				}
+
+				if strmatch("pweight","*`wtg2'*") == 1 { 
+					di err "Type 1 only accepts accept AW."
+					exit 198
+				}
+				
+				if strmatch("fweight","*`wtg2'*") == 1 { 
+					di err "Type 1 only accepts accept AW."
+					exit 198
+				}
+				
+				if strmatch("aweight","*`wtg2'*") == 1 { 
+					
+					gen `Lg' = `inc'/100
+					gen `pg' = `exp2'/100
+				
+				}
+			}
+						
+			* noi list `pg' mean_score_lp `inc' `delta' `inc2' `Lg' in 1/`bins'
+			
+			 
+			************************************
+            ** Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype
+            ************************************
+			
+			if ("`type'" == "2") {
+					
+				sum `inc'
+				local bins = r(N)
+				local last = `bins'-1
+
+				
+				if ("`wtg2'" == "") {
+					di err "Type 1 only accepts accept AW."
+					exit 198
+				}
+
+				if strmatch("pweight","*`wtg2'*") == 1 { 
+					di err "Type 1 only accepts accept AW."
+					exit 198
+				}
+				
+				if strmatch("fweight","*`wtg2'*") == 1 { 
+					di err "Type 1 only accepts accept AW."
+					exit 198
+				}
+				
+				if strmatch("aweight","*`wtg2'*") == 1 { 
+
+					gen `Lg' = `inc'/100
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
+					
+					gen `pg' = `exp2'/100
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
+					
+				}
+			}
+						
+			* noi list `pg' mean_score_lp `inc' `delta' `inc2' `Lg' in 1/`bins'
+			 
+            ************************************
+            ** Type 5 grouped data: W=Percentage of the population in a given interval of incomes, X=The mean income of that interval
             ************************************
 			
 			if ("`type'" == "5") {
+
+				sum `inc'
+				local bins = r(N)
+				local last = `bins'-1
 				
 				if ("`wtg2'" == "") {
 
 					gen double 	`pg' 	= 	1/`bins'
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
 
 					sum `inc'
 					local sumL = r(sum)
 					gen double 	`Lg' = `inc'/`sumL'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
 				
 				}
 
 				if ("`wtg2'" == "pw") {
 
 					gen 		`pg' = `exp2'
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
 					
 					sum `inc' 	[`weight'`exp']
 					local sumL = r(sum)
 					gen double 	`Lg' = `inc'/`sumL'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
 
 				}
 				
@@ -359,39 +449,42 @@ quietly {
 					sum `exp2'
 					local sumP = r(sum)
 					gen double 	`pg' = `exp2'/`sumP'
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
 
 					sum `inc' 	[`weight'`exp']
 					local sumL = r(sum)
 					gen doulbe 	`Lg' = `inc'/`sumL'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
 				
 				}
 				
 				if ("`wtg2'" == "aw") {
 				
-					di err "This option does not accept AW weights. Please use either PW, FW or no weights."
-				
+					noi di err "Type 5 does not accept AW weights. Please use either PW, FW or no weights."
+					exit 198
+
 				}
 			}
 						
             ************************************
-            ** Type6 (MAX value by bin)
+            ** Type 6 grouped data: W=Percentage of the population in a given interval of incomes, X=The max income of that interval
             ************************************
 			
 			tempvar inc2 delta
 			
 			if ("`type'" == "6") {
-				
-				if ("`wtg2'" == "") {
-					
-					local bins = `bins'+1
-					local last = `last'+1
 
-					noi di "min: " `min'
-					noi di "max: " `max'
-					noi di "bins: " `bins'
+				sum `inc'
+				local bins = r(N)
+				local bins = `bins'+1
+				local last = `bins'-1
+
+				noi di "min: " `min'
+				noi di "max: " `max'
+				noi di "bins: " `bins'
 					
+				if ("`wtg2'" == "") {
+
 					gen double 	`pg' 	= 	1/`bins'
 
 					gen 	double `delta' = .
@@ -415,15 +508,27 @@ quietly {
 				}
 
 				if ("`wtg2'" == "pw") {
+					
+					gen double 	`pg' 	= 	`exp2'
 
-					gen 		`pg' = `exp2'
+					gen 	double `delta' = .
+					replace `delta' = (`inc'[_n]-`min')			/2 	in 1
+					replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'
+					replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'
+					
 					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
 					
-					sum `inc' 	[`weight'`exp']
+					gen double `inc2' = .
+					replace `inc2' = `inc' - `delta'				in 1/`last'
+					replace `inc2' = `max' - `delta'				in `bins'
+					
+					sum `inc2'		[`weight'`exp']
 					local sumL = r(sum)
-					gen double 	`Lg' = `inc'/`sumL'
+					gen double 	`Lg' = `inc2'/`sumL'
 					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
-
+					
+					*noi list `pg' mean_score_lp `inc' `delta' `inc2' `Lg' in 1/`bins'
+					
 				}
 				
 				if ("`wtg2'" == "fw") {
@@ -431,18 +536,31 @@ quietly {
 					sum `exp2'
 					local sumP = r(sum)
 					gen double 	`pg' = `exp2'/`sumP'
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
 
-					sum `inc' 	[`weight'`exp']
+					gen 	double `delta' = .
+					replace `delta' = (`inc'[_n]-`min')			/2 	in 1
+					replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'
+					replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'
+					
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
+					
+					gen double `inc2' = .
+					replace `inc2' = `inc' - `delta'				in 1/`last'
+					replace `inc2' = `max' - `delta'				in `bins'
+					
+					sum `inc2'		[`weight'`exp']
 					local sumL = r(sum)
-					gen doulbe 	`Lg' = `inc'/`sumL'
+					gen double 	`Lg' = `inc2'/`sumL'
 					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
-				
+					
+					*noi list `pg' mean_score_lp `inc' `delta' `inc2' `Lg' in 1/`bins'
+					
 				}
 				
 				if ("`wtg2'" == "aw") {
 				
-					di err "This option does not accept AW weights. Please use either PW, FW or no weights."
+					di err "Type 6 does not accept AW weights. Please use either PW, FW or no weights."
+					exit 198
 				
 				}
 			}
@@ -463,8 +581,6 @@ quietly {
 
             gen double `L' = `Lg'					
             gen double `p' = `pg'					
-
-
 
             ************************************
             ** generate variables (GQ Lorenz Curve)
@@ -494,19 +610,22 @@ quietly {
 				replace `L' = 0 in `intercept00'
 				replace `p' = 0 in `intercept00'
 				
-				graph twoway lowess `L' `p'		if `touse', 						///
+				graph twoway lowess `L' `p'		, 						///
 					ytitle("Lorenz") xtitle("Population (Cumulative)") 				///
 					note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
 								
-				kdensity `inc' 					if `touse', 						///
+				kdensity `inc' 					, 						///
 					xline(`z') xtitle("`inc'") name(pdf, replace)
 
-				graph twoway lowess `inc' `p'	if `touse', 						///
+				graph twoway lowess `inc' `p'	, 						///
 					yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
 					note("mean: `mustr' [`bins' bins]") name("pen", replace)
 	
 			}
 
+			
+			* noi list `y1' `a' `b' `c'  `y2' `x1' `x2' if `y1' !=.
+			
             ************************************
             ** Estimation: GQ Lorenz Curve
             ************************************
@@ -516,7 +635,7 @@ quietly {
 			label var `b' 	"B"
 			label var `c'	"C"
 
-            qui reg `y1' `a' `b' `c' in 1/`last' if `touse', noconstant
+            qui reg `y1' `a' `b' `c' in 1/`last' , noconstant
             est store coefgq
             mat `gq' = e(b)
             mat `cof' = e(b)
@@ -529,7 +648,7 @@ quietly {
 			label var `x1'	"B"
 			label var `x2'	"C"
 			
-            qui reg `y2' `x1' `x2' in 1/`last' if `touse'
+            qui reg `y2' `x1' `x2' in 1/`last' 
             est store coefbeta
             mat `cofb' = e(b)
 
@@ -674,13 +793,12 @@ quietly {
         test [gq_mean = gqg_mean]
 
         restore
-
-        **************************************/
-        /* Table 2 (Datt, 1998)             */
-        **************************************
-        /** GQ Lorenz Curve */
-        **************************************
-
+*/
+*-----------------------------------------------------------------------------
+* 	Table 2 (Datt, 1998)             
+*-----------------------------------------------------------------------------
+* 		GQ Lorenz Curve 
+*-----------------------------------------------------------------------------
 
         if ("`grouped'" != "") {
             local a = `gqg'[1,1]
@@ -763,9 +881,9 @@ quietly {
         local elspgmu       = 2*(1-`PG'/`SPG')
         local elspggini     = 2*(1+((`mu'/`z')-1)*(`PG'/`SPG'))
 
-        **************************************
-        /** Beta Lorenz Curve               */
-        **************************************
+*-----------------------------------------------------------------------------
+* 		Beta Lorenz Curve               
+*-----------------------------------------------------------------------------
 
         if ("`grouped'" != "") {
             local aatheta   =   exp(`cofbg'[1,3])
@@ -862,10 +980,10 @@ quietly {
         	local elspgginib   = 2*(1+((`mu'/`z')-1)*(`PgBeta'/`FgtBeta'))
 
 
-        /**************************************************
-        /* Choice of the Lorenz curve                   */
-        **************************************************
-
+*-----------------------------------------------------------------------------
+* Choice of the Lorenz curve                   
+*-----------------------------------------------------------------------------
+/*
         ******test stat for GQ Lorenz******
 
         estimates restore gqg
@@ -1051,7 +1169,7 @@ quietly {
 * Display Lorenz
 *-----------------------------------------------------------------------------
 
-	if ("`nolorenz'" == "") {
+	if ("`nolorenz'" != "") {
 		
 		label var `pg' p
 		label var `Lg' Lorenz

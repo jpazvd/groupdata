@@ -93,15 +93,47 @@ groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmar
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmark nofigure bins(15)
 
 * generated groupped data for check from group data to group data estimates
-mat a = r(data)
+alorenz score_lp [aw=learner_weight_lp] if idgrade == 5, fullview points(15)
+mat a = r(lorenz1) 
 svmat double a, names(col)
+						
+
+* mean  (Type 1: OK) accepts only AW
+groupdata ac_prop_score_lp [aw=ac_prop_pop] , z(200) mu(214.28) nofigure type(1) nochecks noelasticities
+						
+* mean  (Type 2: OK) accepts only AW
+groupdata prop_score_lp [aw=prop_pop ] , z(200) mu(214.28) nofigure type(2) nochecks noelasticities
 						
 * mean  (Type 5: OK) noweight; pw; fw
 groupdata mean_score_lp , z(200) mu(214.28) nofigure type(5) nochecks noelasticities
 
 * max 	(Type 6: OK)
-groupdata maxscore_lp1 , z(200) mu(214.28) nofigure type(5) nochecks noelasticities
-groupdata maxscore_lp1 , z(200) mu(214.28) nofigure type(6) nochecks noelasticities min(109.5313) max(336.978)
+
+tabstat score_lp [aw= learner_weight_lp ] , by(idgrade) stat(mean min max)
+
+groupdata maxscore_lp , z(200) mu(214.28) nofigure type(5) nochecks noelasticities
+groupdata maxscore_lp , z(200) mu(214.28) nofigure type(6) nochecks noelasticities min(92.0619) max(334.22818)
+
+
+
+*******************************************************
+* mean  (Type 1: OK) accepts only AW
+groupdata ac_prop_score_lp [aw=ac_prop_pop] , z(200) mu(214.28) nofigure type(1) nochecks noelasticities nolorenz
+						
+*******************************************************
+* mean  (Type 2: OK) accepts only AW
+groupdata prop_score_lp [aw=prop_pop ] , z(200) mu(214.28) nofigure type(2) nochecks noelasticities
+						
+*******************************************************
+* mean  (Type 5: OK) noweight; pw; fw
+groupdata mean_score_lp , z(200) mu(214.28) nofigure type(5) nochecks noelasticities nolorenz
+
+*******************************************************
+* max 	(Type 6: OK)
+groupdata maxscore_lp , z(200) mu(214.28) nofigure type(6) nochecks noelasticities min(92.0619) max(334.22818) nolorenz
+
+
+
 
 
 graph twoway		///
