@@ -1,5 +1,6 @@
 *-----------------------------------------------------------------------------
-*! v 2.3   08apr2020				  by JPA     		*
+*! v 2.3.1   08apr2020				  by JPA     		*
+*   add SD was an option when estimating groupped data
 *	Remove PW since it is not supported by SUMARIZE
 *   Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative 
 *		proportion of income held by that proportion of the population
@@ -37,7 +38,7 @@ program define groupdata, rclass
 
     syntax varlist(numeric min=1 max=1)         ///
                  [in] [if]                      ///
-                 [fweight aweight]      		///
+                 [fweight aweight pweight]      ///
                  ,                              ///
                          z(real)                ///
                     [							///
@@ -49,16 +50,38 @@ program define groupdata, rclass
 						 NOFIGures				///
 						 UNITRECord				///
 						 type(string) 			///
-						 noelasticities			///
-						 nolorenz				///
-						 nochecks				///
+						 NOElasticities			///
+						 NOLorenz				///
+						 NOChecks				///
 						 min(string)			///
 						 max(string)			///
+						 sd(real -99)			///
+						 debug					///
 					]
 
 quietly {
 
+	
+*-----------------------------------------------------------------------------
+* 	Weights
+*-----------------------------------------------------------------------------
+		
+		* keep original weights
+		local wtg2 = "`weight'"
+		local exp2 = subinstr("`exp'","=","",.)
 
+		* set-up weights when it is not available
+		if ("`weight'" == "") {
+			tempvar wtg
+			gen `wtg' = 1
+			loc weight "fw"
+			loc exp    "=`wtg'"
+			local pop "`wtg'"
+		}
+		else {
+			local pop =subinstr("`exp'","=","",.)
+		}
+		
 *-----------------------------------------------------------------------------
 * Check options
 *-----------------------------------------------------------------------------
@@ -89,6 +112,61 @@ quietly {
 		
 	}
 
+	if ("`type'" == "1") {
+					
+		if ("`wtg2'" == "") {
+			noi di as err "Type 1 only accepts accept AW."
+			exit 198
+		}
+
+		if strmatch("pweight","*`wtg2'*") == 1 { 
+			noi di as err "Type 1 only accepts accept AW."
+			exit 198
+		}
+			
+		if strmatch("fweight","*`wtg2'*") == 1 { 
+			noi di as err "Type 1 only accepts accept AW."
+			exit 198
+		}
+	}
+		
+	if ("`type'" == "2") {
+
+		if ("`wtg2'" == "") {
+			noi di as err "Type 2 only accepts accept AW."
+			exit 198
+		}
+
+		if strmatch("pweight","*`wtg2'*") == 1 { 
+			noi di as err "Type 2 only accepts accept AW."
+			exit 198
+		}
+				
+		if strmatch("fweight","*`wtg2'*") == 1 { 
+			noi di as err "Type 2 only accepts accept AW."
+			exit 198
+		}
+	
+	}
+
+	if ("`type'" == "5") {
+
+		if (substr(trim("`wtg2'"),1,2) == "aw") { 
+			noi di as err "Type 5 does not accept AW weights. Please use either PW, FW or no weights."
+			exit 198
+		}
+		
+	}
+
+	if ("`type'" == "6") {
+
+		if (substr(trim("`wtg2'"),1,2) == "aw") { 
+			noi di as err "Type 6 does not accept AW weights. Please use either PW, FW or no weights."
+			exit 198
+		}
+
+	}	
+	
 *-----------------------------------------------------------------------------
 * Download and install required user written ado's
 *-----------------------------------------------------------------------------
@@ -114,7 +192,50 @@ quietly {
 			}
 		  }
 
-						
+*-----------------------------------------------------------------------------
+* 	Display Options 
+*-----------------------------------------------------------------------------
+
+	* show regression outputs
+		if ("`regress'" != "") {
+			loc noireg "noi "
+		}
+		else {
+			loc noireg ""
+		}
+	
+	* does not show lorenz
+		if ("`nolorenz'" != "") {
+			loc noilor ""
+		}
+		else {
+			loc noilor "noi"
+		}
+	
+	* does not show elasticities
+		if ("`noelasticities'" != "") {
+			loc noelast ""
+		}
+		else {
+			loc noelast "noi"
+		}
+		
+	* does not show checks
+		if ("`nochecks'" != "") {
+			loc nocheck ""
+		}
+		else {
+			loc nocheck "noi"
+		}
+
+	* debug
+		if ("`debug'" == "") {
+			loc noidebug ""
+		}
+		else {
+			loc noidebug "noi"
+		}
+
 *-----------------------------------------------------------------------------
 * 	Temp names 
 *-----------------------------------------------------------------------------
@@ -122,34 +243,6 @@ quietly {
 		tempname A  gq cofb cof  gqg cofbg tmp
 	
 		tempvar  temp touse rnd lninc  pp pw L p y1 y2 a b c  x1 x2  Lg pg yg ag bg cg yg2 x1g x2g  type2 model var value
-	
-	
-*-----------------------------------------------------------------------------
-* 	Locals 
-*-----------------------------------------------------------------------------
-		
-		* keep original weights
-		local wtg2 = "`weight'"
-		local exp2 = subinstr("`exp'","=","",.)
-
-		* set-up weights when it is not available
-		if ("`weight'" == "") {
-			tempvar wtg
-			gen `wtg' = 1
-			loc weight "fw"
-			loc exp    "=`wtg'"
-			local pop "`wtg'"
-		}
-		else {
-			local pop =subinstr("`exp'","=","",.)
-		}
-
-		if ("`regress'" != "") {
-			loc noi2 "noi "
-		}
-		else {
-			loc noi2 ""
-		}
 
 *-----------------------------------------------------------------------------
 * 	Filters
@@ -163,19 +256,11 @@ quietly {
 		markout `touse' `varlist'
 
 *-----------------------------------------------------------------------------
-* 	Data sort
-*-----------------------------------------------------------------------------
-
-		set seed 1234568
-		
-        gen double `rnd' = uniform()		if `touse'
-        gen `lninc' = ln(`inc') 			if `touse'
-        sort `inc' `rnd'
-
-*-----------------------------------------------------------------------------
 * 	Mean values
 *-----------------------------------------------------------------------------
 
+	if ("`type'" == "") {
+		
 	    if (`mu' == -99) {
             sum `inc' [`weight'`exp'] 		if `touse'
             local mu = `r(mean)'
@@ -189,7 +274,38 @@ quietly {
             local lnmu = ln(`mu')
             local lnsd = r(sd)
         }
+	}
 	
+	else {
+            local lnmu = ln(`mu')
+            if (`sd' == -99) {
+				local lnsd = .5
+			}
+			else {
+				local lnsd = `sd'
+			}
+			
+			keep if `touse'
+
+			local N = _N
+			if (`N' < 24) {
+				set obs 24
+			}
+			
+	}
+	
+preserve 
+	
+*-----------------------------------------------------------------------------
+* 	Data sort
+*-----------------------------------------------------------------------------
+
+		set seed 1234568
+		
+        gen double `rnd' = uniform()		if `touse'
+        gen `lninc' = ln(`inc') 			if `touse'
+        sort `inc' `rnd'
+
 *-----------------------------------------------------------------------------
 * 	Unit Record 
 *-----------------------------------------------------------------------------
@@ -339,31 +455,16 @@ quietly {
             ************************************
 			
 			if ("`type'" == "1") {
-					
-				sum `inc'
+	
+				sum `inc'									if `touse'
 				local bins = r(N)
 				local last = `bins'-1
-
 				
-				if ("`wtg2'" == "") {
-					di err "Type 1 only accepts accept AW."
-					exit 198
-				}
-
-				if strmatch("pweight","*`wtg2'*") == 1 { 
-					di err "Type 1 only accepts accept AW."
-					exit 198
-				}
 				
-				if strmatch("fweight","*`wtg2'*") == 1 { 
-					di err "Type 1 only accepts accept AW."
-					exit 198
-				}
-				
-				if strmatch("aweight","*`wtg2'*") == 1 { 
+				if (substr(trim("`wtg2'"),1,2) == "aw") { 
 					
-					gen `Lg' = `inc'/100
-					gen `pg' = `exp2'/100
+					gen `Lg' = `inc'/100					if `touse'
+					gen `pg' = `exp2'/100					if `touse'
 				
 				}
 			}
@@ -377,33 +478,17 @@ quietly {
 			
 			if ("`type'" == "2") {
 					
-				sum `inc'
+				sum `inc'										if `touse'
 				local bins = r(N)
 				local last = `bins'-1
-
 				
-				if ("`wtg2'" == "") {
-					di err "Type 1 only accepts accept AW."
-					exit 198
-				}
+				if (substr(trim("`wtg2'"),1,2) == "aw") { 
 
-				if strmatch("pweight","*`wtg2'*") == 1 { 
-					di err "Type 1 only accepts accept AW."
-					exit 198
-				}
-				
-				if strmatch("fweight","*`wtg2'*") == 1 { 
-					di err "Type 1 only accepts accept AW."
-					exit 198
-				}
-				
-				if strmatch("aweight","*`wtg2'*") == 1 { 
-
-					gen `Lg' = `inc'/100
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
+					gen `Lg' = `inc'/100						if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'	
 					
-					gen `pg' = `exp2'/100
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
+					gen `pg' = `exp2'/100						if `touse'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'	
 					
 				}
 			}
@@ -416,54 +501,48 @@ quietly {
 			
 			if ("`type'" == "5") {
 
-				sum `inc'
+				sum `inc'										if `touse'
 				local bins = r(N)
 				local last = `bins'-1
 				
 				if ("`wtg2'" == "") {
 
-					gen double 	`pg' 	= 	1/`bins'
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
+					gen double 	`pg' 	= 	1/`bins'				if `touse'
+					replace 	`pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'	
 
-					sum `inc'
-					local sumL = r(sum)
-					gen double 	`Lg' = `inc'/`sumL'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
+					sum `inc'										if `touse'
+					local sumL = r(sum)							
+					gen double 	`Lg' = `inc'/`sumL'					if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l		if `touse'
 				
 				}
 
-				if ("`wtg2'" == "pw") {
+				if (substr(trim("`wtg2'"),1,2) == "pw") { 
 
-					gen 		`pg' = `exp2'
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
+					gen 	`pg' = `exp2'						if `touse'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
 					
-					sum `inc' 	[`weight'`exp']
+					sum `inc' 	[aweight`exp']					if `touse'
 					local sumL = r(sum)
-					gen double 	`Lg' = `inc'/`sumL'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
+					gen double 	`Lg' = `inc'/`sumL'				if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
 
 				}
 				
-				if ("`wtg2'" == "fw") {
+				if (substr(trim("`wtg2'"),1,2) == "fw") { 
 					
-					sum `exp2'
+					sum `exp2'									if `touse'
 					local sumP = r(sum)
-					gen double 	`pg' = `exp2'/`sumP'
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
+					gen double 	`pg' = `exp2'/`sumP'			if `touse'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
 
-					sum `inc' 	[`weight'`exp']
+					sum `inc' 	[`weight'`exp']					if `touse'
 					local sumL = r(sum)
-					gen doulbe 	`Lg' = `inc'/`sumL'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
+					gen doulbe 	`Lg' = `inc'/`sumL'				if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
 				
 				}
 				
-				if ("`wtg2'" == "aw") {
-				
-					noi di err "Type 5 does not accept AW weights. Please use either PW, FW or no weights."
-					exit 198
-
-				}
 			}
 						
             ************************************
@@ -473,8 +552,8 @@ quietly {
 			tempvar inc2 delta
 			
 			if ("`type'" == "6") {
-
-				sum `inc'
+
+				sum `inc'															if `touse'
 				local bins = r(N)
 				local bins = `bins'+1
 				local last = `bins'-1
@@ -485,84 +564,78 @@ quietly {
 					
 				if ("`wtg2'" == "") {
 
-					gen double 	`pg' 	= 	1/`bins'
+					gen double 	`pg' 	= 	1/`bins'								if `touse'
 
 					gen 	double `delta' = .
-					replace `delta' = (`inc'[_n]-`min')			/2 	in 1
-					replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'
-					replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'
+					replace `delta' = (`inc'[_n]-`min')			/2 	in 1			if `touse'
+					replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'		if `touse'
+					replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'		if `touse'
 					
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l						if `touse'
 					
-					gen double `inc2' = .
-					replace `inc2' = `inc' - `delta'				in 1/`last'
-					replace `inc2' = `max' - `delta'				in `bins'
+					gen double `inc2' = .											if `touse'
+					replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
+					replace `inc2' = `max' - `delta'				in `bins'		if `touse'
 					
-					sum `inc2'
+					sum `inc2'														if `touse'
 					local sumL = r(sum)
-					gen double 	`Lg' = `inc2'/`sumL'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
+					gen double 	`Lg' = `inc2'/`sumL'								if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l						if `touse'
 					
-					*noi list `pg' mean_score_lp `inc' `delta' `inc2' `Lg' in 1/`bins'
+					`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
 				
 				}
 
-				if ("`wtg2'" == "pw") {
-					
-					gen double 	`pg' 	= 	`exp2'
+				if (substr(trim("`wtg2'"),1,2) == "pw") { 
+	
+					gen double 	`pg' 	= 	`exp2'									if `touse'
 
-					gen 	double `delta' = .
-					replace `delta' = (`inc'[_n]-`min')			/2 	in 1
-					replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'
-					replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'
+					gen 	double `delta' = .										if `touse'
+					replace `delta' = (`inc'[_n]-`min')			/2 	in 1			if `touse'
+					replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'		if `touse'
+					replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'		if `touse'
 					
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l						if `touse'
 					
-					gen double `inc2' = .
-					replace `inc2' = `inc' - `delta'				in 1/`last'
-					replace `inc2' = `max' - `delta'				in `bins'
+					gen double `inc2' = .											if `touse'
+					replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
+					replace `inc2' = `max' - `delta'				in `bins'		if `touse'
 					
-					sum `inc2'		[`weight'`exp']
+					sum `inc2'		[aweight`exp']									if `touse'
 					local sumL = r(sum)
-					gen double 	`Lg' = `inc2'/`sumL'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
+					gen double 	`Lg' = `inc2'/`sumL'								if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l						if `touse'
 					
-					*noi list `pg' mean_score_lp `inc' `delta' `inc2' `Lg' in 1/`bins'
+					`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
 					
 				}
 				
-				if ("`wtg2'" == "fw") {
-					
-					sum `exp2'
+				if (substr(trim("`wtg2'"),1,2) == "fw") { 
+	
+					sum `exp2'														if `touse'
 					local sumP = r(sum)
-					gen double 	`pg' = `exp2'/`sumP'
+					gen double 	`pg' = `exp2'/`sumP'								if `touse'
 
-					gen 	double `delta' = .
-					replace `delta' = (`inc'[_n]-`min')			/2 	in 1
-					replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'
-					replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'
+					gen 	double `delta' = .										if `touse'
+					replace `delta' = (`inc'[_n]-`min')			/2 	in 1			if `touse'
+					replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'		if `touse'
+					replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'		if `touse'
 					
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l						if `touse'
 					
-					gen double `inc2' = .
-					replace `inc2' = `inc' - `delta'				in 1/`last'
-					replace `inc2' = `max' - `delta'				in `bins'
+					gen double `inc2' = .											if `touse'
+					replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
+					replace `inc2' = `max' - `delta'				in `bins'		if `touse'
 					
-					sum `inc2'		[`weight'`exp']
+					sum `inc2'		[`weight'`exp']									if `touse'
 					local sumL = r(sum)
-					gen double 	`Lg' = `inc2'/`sumL'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
+					gen double 	`Lg' = `inc2'/`sumL'								if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l						if `touse'
 					
-					*noi list `pg' mean_score_lp `inc' `delta' `inc2' `Lg' in 1/`bins'
+					`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
 					
 				}
-				
-				if ("`wtg2'" == "aw") {
-				
-					di err "Type 6 does not accept AW weights. Please use either PW, FW or no weights."
-					exit 198
-				
-				}
+
 			}
 			
             ************************************
@@ -579,9 +652,25 @@ quietly {
             replace `p' = `pp'+`p'[_n-1] in 2/l		if `touse'
 */
 
-            gen double `L' = `Lg'					
-            gen double `p' = `pg'					
+			sum `pg' 
+			local s = r(sum)
+			if (`s'>99) {
+				gen double `p' = `pg'/100					
+			} 
+			else {
+				gen double `p' = `pg'					
+			}
 
+			sum `Lg' 
+			local s = r(sum)
+			if (`s'>99) {
+				gen double `L' = `Lg'/100					
+			} 
+			else {
+				gen double `L' = `Lg'					
+			}
+
+			
             ************************************
             ** generate variables (GQ Lorenz Curve)
             ************************************
@@ -606,7 +695,7 @@ quietly {
 			if ("`nofigures'" == "") {
 			    
 				local mustr = strofreal(`mu',"%9.2f")
-				local intercept00 = _N + 1
+				local intercept00 = `bins' + 1
 				replace `L' = 0 in `intercept00'
 				replace `p' = 0 in `intercept00'
 				
@@ -624,7 +713,7 @@ quietly {
 			}
 
 			
-			* noi list `y1' `a' `b' `c'  `y2' `x1' `x2' if `y1' !=.
+			`noidebug' list `Lg' `L' `pg' `p'  `y1' `a' `b' `c'  `y2' `x1' `x2' if `y1' !=.
 			
             ************************************
             ** Estimation: GQ Lorenz Curve
@@ -1168,29 +1257,26 @@ quietly {
 *-----------------------------------------------------------------------------
 * Display Lorenz
 *-----------------------------------------------------------------------------
-
-	if ("`nolorenz'" != "") {
 		
 		label var `pg' p
 		label var `Lg' Lorenz
-	
+
 		format `pg' %16.2f
 		format `Lg' %16.3f  
 	
-		noi di 			""
-		noi di as text 	"{hline 15}    Distribution    {hline 15}"
-		noi di as text 	_col(5) "i "    _col(15) "P"   _col(40) "L" 
-		noi di as text 	"{hline 50}"
+		`noilor' di 			""
+		`noilor' di as text 	"{hline 15}    Distribution    {hline 15}"
+		`noilor' di as text 	_col(5) "i "    _col(15) "P"   _col(40) "L" 
+		`noilor' di as text 	"{hline 50}"
 		
 		forvalues l = 1(1)`bins' {
 			local P = `pg' in `l'
 			local L = `Lg' in `l'
-			noi di as text _col(5) "`l'"  as res  _col(15) %5.4f `P'   _col(40) %5.4f `L'
+			`noilor' di as text _col(5) "`l'"  as res  _col(15) %5.4f `P'   _col(40) %5.4f `L'
 		}
 		
-		noi di as text 	"{hline 50}"
+		`noilor' di as text 	"{hline 50}"
 	
-	}
 	
 *-----------------------------------------------------------------------------
 * Display Regression results 
@@ -1198,17 +1284,17 @@ quietly {
 		 
 	if ("`grouped'" == "grouped") {
 		 
-        `noi2' di ""
-		`noi2' di ""
-        `noi2' di as text "Estimation: " as res "GQ Lorenz Curve (grouped data)"
-		`noi2' estout  coefgqg, cells("b(star fmt(%9.3f)) se t p")                ///
+        `noireg' di ""
+		`noireg' di ""
+        `noireg' di as text "Estimation: " as res "GQ Lorenz Curve (grouped data)"
+		`noireg' estout  coefgqg, cells("b(star fmt(%9.3f)) se t p")                ///
 			  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
 			  legend label  
 
-		`noi2' di ""
-        `noi2' di ""
-        `noi2' di as text "Estimation: " as res "Beta Lorenz Curve (Grouped data)"
-		`noi2' estout coefbetag, cells("b(star fmt(%9.3f)) se t p")                ///
+		`noireg' di ""
+        `noireg' di ""
+        `noireg' di as text "Estimation: " as res "Beta Lorenz Curve (Grouped data)"
+		`noireg' estout coefbetag, cells("b(star fmt(%9.3f)) se t p")                ///
 			  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared" F-sta RMSE MSS RSS Obs))      ///
 			  legend label  varlabels(_cons A)  
 
@@ -1216,17 +1302,17 @@ quietly {
 
 	if ("`grouped'" == "") {
 
-		`noi2' di ""
-        `noi2' di ""
-        `noi2' di as text "Estimation: " as res "GQ Lorenz Curve"
-		`noi2' estout  coefgq, cells("b(star fmt(%9.3f)) se t p")                ///
+		`noireg' di ""
+        `noireg' di ""
+        `noireg' di as text "Estimation: " as res "GQ Lorenz Curve"
+		`noireg' estout  coefgq, cells("b(star fmt(%9.3f)) se t p")                ///
 			  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared" F-sta RMSE MSS RSS Obs))      ///
 			  legend label    
 
-		`noi2' di ""
-        `noi2' di ""
-        `noi2' di as text "Estimation: " as res "Beta Lorenz Curve"
-		`noi2' estout coefbeta, cells("b(star fmt(%9.3f)) se t p")                ///
+		`noireg' di ""
+        `noireg' di ""
+        `noireg' di as text "Estimation: " as res "Beta Lorenz Curve"
+		`noi2reg' estout coefbeta, cells("b(star fmt(%9.3f)) se t p")                ///
 			  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared" F-sta RMSE MSS RSS Obs))      ///
 			  legend label  varlabels(_cons A)  
 
@@ -1246,20 +1332,16 @@ quietly {
 * Display Elasticities 
 *-----------------------------------------------------------------------------
 	
-	if ("`noelasticities'" != "") {
 
-        noi di ""
-        noi di ""
-        noi di "Estimated Elasticities:"
-        noi tabdisp `var' `model' `type2' if `var' != . & `type2' != 1 & `value' != . , cell(`value')
+		`noelast' di ""
+        `noelast' di ""
+        `noelast' di "Estimated Elasticities:"
+        `noelast' tabdisp `var' `model' `type2' if `var' != . & `type2' != 1 & `value' != . , cell(`value')
 
-	}
 	
 *-----------------------------------------------------------------------------
 *  Checking for consistency of lorenz curve estimation (section 4)
 *-----------------------------------------------------------------------------
-
-	if ("`nochecks'" != "") {
 
 		noi di as text "Estimation Validity"
 
@@ -1268,38 +1350,38 @@ quietly {
         ***********************
         quietly {
 
-            noi di ""
-            noi di ""
-            noi di as text "Checking for consistency of lorenz curve estimation: " as res "GQ Lorenz Curve"
+            `nocheck' di ""
+            `nocheck' di ""
+            `nocheck' di as text "Checking for consistency of lorenz curve estimation: " as res "GQ Lorenz Curve"
 
             /** Condition 1 */
             if (`e' < 0) {
-                noi di as text "L(0;pi)=0: " as res  "OK"
+                `nocheck' di as text "L(0;pi)=0: " as res  "OK"
                 local ccheck1 = 1
             }
             else {
-                noi di as text "L(0;pi)=0: " as err "FAIL"
+                `nocheck' di as text "L(0;pi)=0: " as err "FAIL"
                 local ccheck1 = 0
             }
 
             /** Condition 2 */
             local t = (`a'+`c')
             if (`t' >= 1) {
-                noi di as text "L(1;pi)=1: " as res "OK (value=" %9.4f `t' ")"
+                `nocheck' di as text "L(1;pi)=1: " as res "OK (value=" %9.4f `t' ")"
                 local ccheck2 = 1
             }
             else {
-                noi di as text "L(1;pi)=1: " as err "FAIL (value=" %9.4f `t' ")"
+                noi`nocheck'di as text "L(1;pi)=1: " as err "FAIL (value=" %9.4f `t' ")"
                 local ccheck2 = 0
             }
 
             /** Condition 3 */
             if (`c' >= 0) {
-                noi di as text "L'(0+;pi)>=0: " as res  "OK"
+                `nocheck' di as text "L'(0+;pi)>=0: " as res  "OK"
                 local ccheck3 = 1
             }
             else {
-                noi di as text "L'(0+;pi)>=0: " as err "FAIL"
+                `nocheck' di as text "L'(0+;pi)>=0: " as err "FAIL"
                 local ccheck3 = 0
             }
 
@@ -1307,11 +1389,11 @@ quietly {
             /** Condition 4 */
 
             if ( `m' < 0 | (( 0 < `m' <(`n'^2/(4*`e'^2)))	& `n' >= 0) | ((0 < `m' < (-`n'/2)) & (`m' < (`n'^2 /(4*`e'^2))))) {
-                noi di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
+                `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
                 local ccheck4 = 1
             }
             else {
-                noi di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
+                `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
                 local ccheck4 = 0
             }
 
@@ -1321,8 +1403,8 @@ quietly {
         /* Beta Lorenz curve */
         ***********************
 
-        noi di ""
-        noi di as text "Checking for consistency of lorenz curve estimation: " as res "Beta Lorenz curve"
+        `nocheck' di ""
+        `nocheck' di as text "Checking for consistency of lorenz curve estimation: " as res "Beta Lorenz curve"
 
         /** Condition 1 */
         * automatically satisfied by the functional form
@@ -1349,32 +1431,31 @@ quietly {
         		local i=`i'+.01
         	}
 
-        noi di as text "L(0;pi)=0: " as res "OK (automatically satisfied by the functional form)"
+        `nocheck' di as text "L(0;pi)=0: " as res "OK (automatically satisfied by the functional form)"
 
-        noi di as text "L(1;pi)=1: " as res "OK (automatically satisfied by the functional form)"
+        `nocheck' di as text "L(1;pi)=1: " as res "OK (automatically satisfied by the functional form)"
 
         if `check1'>=0  {
-            noi di as text "L'(0+;pi)>=0: " as res  "OK"
+            `nocheck' di as text "L'(0+;pi)>=0: " as res  "OK"
 			local bcheck3 = 1
         }
         else {
-            noi di as text "L'(0+;pi)>=0: " as err "FAIL "
+            `nocheck' di as text "L'(0+;pi)>=0: " as err "FAIL "
 			local bcheck3 = 0
         }
 
         if `check2'==0 {
-            noi di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
+            `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
 			local bcheck4 = 1
         }
         else {
-            noi di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
+            `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
 			local bcheck4 = 0
         }
 
-		noi di ""
-		noi di ""
+		`nocheck' di ""
+		`nocheck' di ""
 		
-	}
 				
 *-----------------------------------------------------------------------------
 * Store results 
@@ -1431,4 +1512,6 @@ quietly {
 
 	cap: drop y1 a b c y2 x1 x2
 
+restore
+	
 end

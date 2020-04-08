@@ -92,6 +92,8 @@ groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmar
 
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmark nofigure bins(15)
 
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmark nofigure bins(15)
+
 * generated groupped data for check from group data to group data estimates
 alorenz score_lp [aw=learner_weight_lp] if idgrade == 5, fullview points(15)
 mat a = r(lorenz1) 
@@ -105,6 +107,8 @@ groupdata ac_prop_score_lp [aw=ac_prop_pop] , z(200) mu(214.28) nofigure type(1)
 groupdata prop_score_lp [aw=prop_pop ] , z(200) mu(214.28) nofigure type(2) nochecks noelasticities
 						
 * mean  (Type 5: OK) noweight; pw; fw
+groupdata mean_score_lp [pw=prop_pop], z(200) mu(214.28) nofigure type(5) nochecks noelasticities
+
 groupdata mean_score_lp , z(200) mu(214.28) nofigure type(5) nochecks noelasticities
 
 * max 	(Type 6: OK)
