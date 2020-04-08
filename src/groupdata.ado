@@ -325,7 +325,7 @@ quietly {
             local last = `bins'-1
 
             ************************************
-            ** Type5 (mean value by bin)
+            ** Type5 (MEAN value by bin)
             ************************************
 			
 			if ("`type'" == "5") {
@@ -374,11 +374,9 @@ quietly {
 				
 				}
 			}
-			
-			
 						
             ************************************
-            ** Type6 (mean value by bin)
+            ** Type6 (MAX value by bin)
             ************************************
 			
 			tempvar inc2 delta
@@ -401,7 +399,7 @@ quietly {
 					replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'
 					replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'
 					
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
 					
 					gen double `inc2' = .
 					replace `inc2' = `inc' - `delta'				in 1/`last'
@@ -410,7 +408,7 @@ quietly {
 					sum `inc2'
 					local sumL = r(sum)
 					gen double 	`Lg' = `inc2'/`sumL'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
 					
 					*noi list `pg' mean_score_lp `inc' `delta' `inc2' `Lg' in 1/`bins'
 				
@@ -419,12 +417,12 @@ quietly {
 				if ("`wtg2'" == "pw") {
 
 					gen 		`pg' = `exp2'
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
 					
 					sum `inc' 	[`weight'`exp']
 					local sumL = r(sum)
 					gen double 	`Lg' = `inc'/`sumL'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
 
 				}
 				
@@ -433,12 +431,12 @@ quietly {
 					sum `exp2'
 					local sumP = r(sum)
 					gen double 	`pg' = `exp2'/`sumP'
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
 
 					sum `inc' 	[`weight'`exp']
 					local sumL = r(sum)
 					gen doulbe 	`Lg' = `inc'/`sumL'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	
 				
 				}
 				
@@ -1130,7 +1128,7 @@ quietly {
 * Display Elasticities 
 *-----------------------------------------------------------------------------
 	
-	if ("`noelasticities'" == "") {
+	if ("`noelasticities'" != "") {
 
         noi di ""
         noi di ""
@@ -1143,7 +1141,7 @@ quietly {
 *  Checking for consistency of lorenz curve estimation (section 4)
 *-----------------------------------------------------------------------------
 
-	if ("`nochecks'" == "") {
+	if ("`nochecks'" != "") {
 
 		noi di as text "Estimation Validity"
 
@@ -1294,6 +1292,7 @@ quietly {
         return scalar elpgginib   	= `elpgginib'
         return scalar elspgmub    	= `elspgmub'
         return scalar elspgginib  	= `elspgginib'
+	if ("`nochecks'" != "") {
         return scalar check1b   	= 1
         return scalar check2b   	= 1
         return scalar check3b   	= `bcheck3'
@@ -1302,8 +1301,9 @@ quietly {
         return scalar check2gq  	= `ccheck2'
         return scalar check3gq  	= `ccheck3'
         return scalar check4gq  	= `ccheck4'
-        return scalar mu        	= `mu'
         return scalar t         	= `t'
+	}
+        return scalar mu        	= `mu'
 		
 }
 
