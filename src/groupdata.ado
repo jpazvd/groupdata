@@ -501,7 +501,7 @@ preserve
 			
 			if ("`type'" == "5") {
 
-				sum `inc'										if `touse'
+				sum `inc'											if `touse'
 				local bins = r(N)
 				local last = `bins'-1
 				
@@ -517,17 +517,29 @@ preserve
 				
 				}
 
+				*set trace on
+				
+				
 				if (substr(trim("`wtg2'"),1,2) == "pw") { 
 
-					gen 	`pg' = `exp2'						if `touse'
-					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+					tempvar LLLLL PPPPP
+				
+					gen 	`pg' = `exp2'						
+					replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	
 					
-					sum `inc' 	[aweight`exp']					if `touse'
+					gen double `PPPPP' = `exp2'*`inc'*100000
+					sum `PPPPP' 						
 					local sumL = r(sum)
-					gen double 	`Lg' = `inc'/`sumL'				if `touse'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+					gen double 	`LLLLL' = `PPPPP'/`sumL'
+					replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] in 2/l	
+					
+					gen double `Lg' = `LLLLL'
+					
+					`noidebug' list `pg' `inc' `Lg' `LLLLL' `PPPPP'
 
 				}
+				
+				*set trace off
 				
 				if (substr(trim("`wtg2'"),1,2) == "fw") { 
 					
@@ -588,6 +600,8 @@ preserve
 
 				if (substr(trim("`wtg2'"),1,2) == "pw") { 
 	
+					tempvar LLLLL PPPPP
+	
 					gen double 	`pg' 	= 	`exp2'									if `touse'
 
 					gen 	double `delta' = .										if `touse'
@@ -600,12 +614,16 @@ preserve
 					gen double `inc2' = .											if `touse'
 					replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
 					replace `inc2' = `max' - `delta'				in `bins'		if `touse'
+
 					
-					sum `inc2'		[aweight`exp']									if `touse'
+					gen double `PPPPP' = `exp2'*`inc2'*100000
+					sum `PPPPP' 						
 					local sumL = r(sum)
-					gen double 	`Lg' = `inc2'/`sumL'								if `touse'
-					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l						if `touse'
+					gen double 	`LLLLL' = `PPPPP'/`sumL'
+					replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] in 2/l	
 					
+					gen double `Lg' = `LLLLL'
+	
 					`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
 					
 				}
