@@ -61,7 +61,8 @@ program define groupdata, rclass
 
 quietly {
 
-	
+preserve 
+		
 *-----------------------------------------------------------------------------
 * 	Weights
 *-----------------------------------------------------------------------------
@@ -294,8 +295,7 @@ quietly {
 			
 	}
 	
-preserve 
-	
+
 *-----------------------------------------------------------------------------
 * 	Data sort
 *-----------------------------------------------------------------------------
@@ -501,6 +501,8 @@ preserve
 			
 			if ("`type'" == "5") {
 
+			*set trace on
+
 				sum `inc'											if `touse'
 				local bins = r(N)
 				local last = `bins'-1
@@ -515,9 +517,12 @@ preserve
 					gen double 	`Lg' = `inc'/`sumL'					if `touse'
 					replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l		if `touse'
 				
-				}
+					`noidebug' list `pg' `inc' `Lg' `LLLLL' `PPPPP'
 
-				*set trace on
+				}
+			
+			*set trace off
+
 				
 				
 				if (substr(trim("`wtg2'"),1,2) == "pw") { 
@@ -539,7 +544,6 @@ preserve
 
 				}
 				
-				*set trace off
 				
 				if (substr(trim("`wtg2'"),1,2) == "fw") { 
 					
@@ -620,7 +624,7 @@ preserve
 					sum `PPPPP' 						
 					local sumL = r(sum)
 					gen double 	`LLLLL' = `PPPPP'/`sumL'
-					replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] in 2/l	
+					replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] in 2/`bins'	
 					
 					gen double `Lg' = `LLLLL'
 	
@@ -1086,7 +1090,6 @@ preserve
         	local elspgmub     = 2*(1-`PgBeta'/`FgtBeta')
         	local elspgginib   = 2*(1+((`mu'/`z')-1)*(`PgBeta'/`FgtBeta'))
 
-
 *-----------------------------------------------------------------------------
 * Choice of the Lorenz curve                   
 *-----------------------------------------------------------------------------
@@ -1344,7 +1347,7 @@ preserve
         noi di ""
         noi di "Estimated Poverty and Inequality Measures:"
         noi tabdisp `var' `model' if `var' != . & `type2' == 1, cell(`value')
-        noi di "Mean Income/Expenditure: " as res %16.2f `mu'
+        noi di "Mean `inc': " as res %16.2f `mu'
 
 *-----------------------------------------------------------------------------
 * Display Elasticities 

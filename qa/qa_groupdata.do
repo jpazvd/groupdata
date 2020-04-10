@@ -79,6 +79,7 @@ graph twoway		///
 			legend(label(1 "2011") label(2 "2013") label(3 "2015") label(4 "2017"))
 
 
+			
 *-----------------------------------------------------------------------------
 * Learning Poverty Simulation (distributionally neutral) - generate group data
 
@@ -107,8 +108,6 @@ groupdata ac_prop_score_lp [aw=ac_prop_pop] , z(200) mu(214.28) nofigure type(1)
 groupdata prop_score_lp [aw=prop_pop ] , z(200) mu(214.28) nofigure type(2) nochecks noelasticities
 						
 * mean  (Type 5: OK) noweight; pw; fw
-groupdata mean_score_lp [pw=prop_pop], z(200) mu(214.28) nofigure type(5) nochecks noelasticities
-
 groupdata mean_score_lp , z(200) mu(214.28) nofigure type(5) nochecks noelasticities
 
 * max 	(Type 6: OK)
@@ -172,6 +171,30 @@ use "$output\score2011", clear
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group bins(10) benchmark
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) mu(214.8) group 
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) mu(207.9) group 
+  
+*-----------------------------------------------------------------------------
+* Distributional Impact  
+  
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5 & year == 2017, ///
+			z(200) bins(15) group nofig noe noch
+  
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5 & year == 2017, ///
+			z(200) bins(15) mu(210.9) group nofig noe noch
+
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5 & year == 2015, ///
+			z(200) bins(15) mu(210.9) group nofig noe noch
+
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5 & year == 2011, ///
+			z(200) bins(15) mu(210.9) group nofig noe noch
+
+
+graph twoway		///
+	(kdensity score_lp [aw=learner_weight_lp] if year==2011) ///
+	(kdensity score_lp [aw=learner_weight_lp] if year==2015) ///
+	(kdensity score_lp [aw=learner_weight_lp] if year==2017), 	///
+			xline(200) ///
+			legend(label(1 "2011") label(2 "2015") label(3 "2017") cols(3)) ///
+			xtitle("reading score (SAEB, 5th Grade)")
   
 *-----------------------------------------------------------------------------
 /*
