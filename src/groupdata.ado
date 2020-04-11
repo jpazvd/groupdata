@@ -1,5 +1,9 @@
 *-----------------------------------------------------------------------------
-*! v 2.3.1   08apr2020				  by JPA     		*
+*! v 2.4   	10apr2020				  			by JPA     		
+*	lnsd: fixed
+*	mz 	: multiple poverty lines
+*   mmu	: multiple mean values
+* v 2.3.1   08apr2020				  			by JPA     		
 *   add SD was an option when estimating groupped data
 *	Remove PW since it is not supported by SUMARIZE
 *   Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative 
@@ -12,24 +16,24 @@
 *   Unit record data: Percentage of the population with same income level, 
 *		The income level.
 *		improve the layout
-* v 2.2   06apr2020				  by JPA     		*
+* v 2.2   06apr2020				  				by JPA     		
 *   dependencies checks run quietly
 *   apoverty and ainequal added to the dependencies check
-* v 2.1   05apr2020				  by JPA     		*
+* v 2.1   05apr2020				  				by JPA     		
 *   changed ado name from grouppov to groupdata
-* v 2.0   02apr2020				  by JPA     		*
+* v 2.0   02apr2020				  				by JPA     		
 *   changes made to use this method to estimate learning poverty 
 * 	add support to aweight
 *   replace wtile2 by alorenz
 *   add microdata value as benchmark
-* v 1.1   14jan2014				  by SM and SM		
+* v 1.1   14jan2014				  				by SM and JPA
 *   change ado name from povcal to grouppov
 *   technical note on Global Poverty Estimation: Theoratical and Empirical 
 *   Validity of Parametric Lorenz Curve Estiamtes and Revisitng Non-parametric 
 *   techniques. (January, 2014), for discussions on the World Bank Global 
 *   Poverty Monitoring Working Group.
-* v 1.0   02fev2012				  by SM and JPA 			*
-*   povcal.ado created by Joao Pedro Azevedo and Shabana Mitra
+* v 1.0   02fev2012				  				by SM and JPA 			
+*   povcal.ado created by Joao Pedro Azevedo (JPA) and Shabana Mitra (SM)
 *-----------------------------------------------------------------------------
 
 program define groupdata, rclass
@@ -64,11 +68,20 @@ quietly {
 preserve 
 		
 *-----------------------------------------------------------------------------
+* 	Temp names 
+*-----------------------------------------------------------------------------
+		
+		tempname A  gq cofb cof  gqg cofbg tmp
+	
+		tempvar  temp touse rnd lninc lnmpce mpce pp pw L p y1 y2 a b c  x1 x2  Lg pg yg ag bg cg yg2 x1g x2g  type2 model var value
+
+*-----------------------------------------------------------------------------
 * 	Weights
 *-----------------------------------------------------------------------------
 		
 		* keep original weights
 		local wtg2 = "`weight'"
+		local weight2 = "`weight'"
 		local exp2 = subinstr("`exp'","=","",.)
 
 		* set-up weights when it is not available
@@ -78,10 +91,12 @@ preserve
 			loc weight "fw"
 			loc exp    "=`wtg'"
 			local pop "`wtg'"
+			local `mpce' = `pop'
 		}
 		else {
 			local pop =subinstr("`exp'","=","",.)
-		}
+			local `mpce' = `pop'
+}
 		
 *-----------------------------------------------------------------------------
 * Check options
@@ -156,7 +171,10 @@ preserve
 			noi di as err "Type 5 does not accept AW weights. Please use either PW, FW or no weights."
 			exit 198
 		}
-		
+		if strmatch("pweight","*`wtg2'*") == 1 { 
+			local weight2 = "aweight"
+		}
+
 	}
 
 	if ("`type'" == "6") {
@@ -164,6 +182,9 @@ preserve
 		if (substr(trim("`wtg2'"),1,2) == "aw") { 
 			noi di as err "Type 6 does not accept AW weights. Please use either PW, FW or no weights."
 			exit 198
+		}
+		if strmatch("pweight","*`wtg2'*") == 1 { 
+			local weight2 = "aweight"
 		}
 
 	}	
@@ -238,14 +259,6 @@ preserve
 		}
 
 *-----------------------------------------------------------------------------
-* 	Temp names 
-*-----------------------------------------------------------------------------
-		
-		tempname A  gq cofb cof  gqg cofbg tmp
-	
-		tempvar  temp touse rnd lninc  pp pw L p y1 y2 a b c  x1 x2  Lg pg yg ag bg cg yg2 x1g x2g  type2 model var value
-
-*-----------------------------------------------------------------------------
 * 	Filters
 *-----------------------------------------------------------------------------
 
@@ -257,54 +270,65 @@ preserve
 		markout `touse' `varlist'
 
 *-----------------------------------------------------------------------------
-* 	Mean values
-*-----------------------------------------------------------------------------
-
-	if ("`type'" == "") {
-		
-	    if (`mu' == -99) {
-            sum `inc' [`weight'`exp'] 		if `touse'
-            local mu = `r(mean)'
-
-            sum `lnmpce' [`weight'`exp']	if `touse'
-            local lnmu = r(mean)
-            local lnsd = r(sd)
-        }
-        else {
-            sum `lnmpce' [`weight'`exp']	if `touse'
-            local lnmu = ln(`mu')
-            local lnsd = r(sd)
-        }
-	}
-	
-	else {
-            local lnmu = ln(`mu')
-            if (`sd' == -99) {
-				local lnsd = .5
-			}
-			else {
-				local lnsd = `sd'
-			}
-			
-			keep if `touse'
-
-			local N = _N
-			if (`N' < 24) {
-				set obs 24
-			}
-			
-	}
-	
-
-*-----------------------------------------------------------------------------
 * 	Data sort
 *-----------------------------------------------------------------------------
 
 		set seed 1234568
 		
         gen double `rnd' = uniform()		if `touse'
-        gen `lninc' = ln(`inc') 			if `touse'
+        gen `lninc' 	= ln(`inc') 			if `touse'
+		gen `lnmpce' 	= ln(`inc') 			if `touse'
         sort `inc' `rnd'
+
+*-----------------------------------------------------------------------------
+* 	Mean values
+*-----------------------------------------------------------------------------
+
+	* generate mean values if unit record data is provided
+	if ("`type'" == "") {
+		
+	    if (`mu' == -99) {
+            * generate mean and stadard deviation for unit record data
+			sum `inc' [`weight2'`exp']			if `touse'
+            local mu = `r(mean)'
+
+            sum `lnmpce' [`weight2'`exp']		if `touse'
+            local lnmu = r(mean)
+            local lnsd = r(sd)
+        }
+	
+        if (`mu') != -99 {
+			* use the mean provided as an option 
+			sum `lnmpce' [`weight2'`exp']		if `touse'
+            local lnmu = ln(`mu')
+            local lnsd = r(sd)
+        }
+	}
+	
+	if ("`type'" != "") {
+            
+			local lnmu = ln(`mu')
+            
+			if (`sd' == -99) {
+				sum `lnmpce' [`weight2'`exp']	if `touse'
+				local lnmu = ln(`mu')
+				local lnsd = r(sd)
+*				local lnsd = ln(.5)
+			}
+			
+			else {
+				local lnsd = ln(`sd')
+			}
+			
+			keep if `touse'
+
+			local N = _N
+			
+			if (`N' < 24) {
+				set obs 24
+			}
+	}
+	
 
 *-----------------------------------------------------------------------------
 * 	Unit Record 
@@ -811,9 +835,9 @@ preserve
 
             ** generate variables Beta Lorenz Curve (Grouped data)
 
-            gen double `yg2'=ln(`pg'-`Lg')
-            gen double `x1g'=ln(`pg')
-            gen double `x2g'=ln(1-`pg')
+            gen double `yg2' = ln(`pg'-`Lg')
+            gen double `x1g' = ln(`pg')
+            gen double `x2g' = ln(1-`pg')
 
             local lastg = `bins'-1
 
