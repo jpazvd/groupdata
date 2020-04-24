@@ -1,5 +1,9 @@
 *-----------------------------------------------------------------------------
-*! v 2.4   	10apr2020				  			by JPA     		
+*! v 2.6	16apr2020							by 	JPA		groupdata
+*   added Beta and Quadratic Lorenz regression coefficient in the return list
+* v 2.5	14apr2020							by 	JPA		groupdata
+*   added the cleanversion function
+* v 2.4   	10apr2020				  			by JPA     		
 *	lnsd: fixed
 *	mz 	: multiple poverty lines
 *   mmu	: multiple mean values
@@ -198,22 +202,41 @@ preserve
 
 * Loop over all the commands to test if they are already installed, if not, then install
 		  qui foreach command of local user_commands {
+			
 			cap which `command'
+			
 			if _rc == 111 { 
 				ssc install `command'
 			}
+			
 			else {
+		
+			* check version number
 				which_version groupfunction 
-				if  (`s(version)' < 2.0) {
+		
+			* clean version number 
+				cleanversion, input(`s(version)') lookfor(.)
+		
+			* condition
+				if  (`r(result1)' < 2.0) {
 					ado update groupfunction , update
 				}
+
+			* check version number
 				which_version alorenz
-				if  (`s(version)' < 3.1) {
+			
+			* clean version number 
+				cleanversion, input(`s(version)') lookfor(.)
+			
+			* condition
+				if  (`r(result1)' < 3.1) {
 					ado update alorenz , update
+			
 				}
 			}
-		  }
-
+			
+		 }
+		  
 *-----------------------------------------------------------------------------
 * 	Display Options 
 *-----------------------------------------------------------------------------
@@ -263,19 +286,21 @@ preserve
 *-----------------------------------------------------------------------------
 
 		tokenize `varlist'
+		
 		local inc `1'
 
 		mark `touse' `if' `in' [`weight'`exp']
 		
-		markout `touse' `varlist'
-
+		* remove missing values from estiamte
+		markout `touse'  `varlist'
+		
 *-----------------------------------------------------------------------------
 * 	Data sort
 *-----------------------------------------------------------------------------
 
 		set seed 1234568
 		
-        gen double `rnd' = uniform()		if `touse'
+        gen double `rnd' = uniform()			if `touse'
         gen `lninc' 	= ln(`inc') 			if `touse'
 		gen `lnmpce' 	= ln(`inc') 			if `touse'
         sort `inc' `rnd'
@@ -288,9 +313,10 @@ preserve
 	if ("`type'" == "") {
 		
 	    if (`mu' == -99) {
-            * generate mean and stadard deviation for unit record data
+
+			* generate mean and stadard deviation for unit record data
 			sum `inc' [`weight2'`exp']			if `touse'
-            local mu = `r(mean)'
+			local mu = `r(mean)'
 
             sum `lnmpce' [`weight2'`exp']		if `touse'
             local lnmu = r(mean)
@@ -304,6 +330,7 @@ preserve
             local lnsd = r(sd)
         }
 	}
+
 	
 	if ("`type'" != "") {
             
@@ -1357,7 +1384,7 @@ preserve
 		`noireg' di ""
         `noireg' di ""
         `noireg' di as text "Estimation: " as res "Beta Lorenz Curve"
-		`noi2reg' estout coefbeta, cells("b(star fmt(%9.3f)) se t p")                ///
+		`noireg' estout coefbeta, cells("b(star fmt(%9.3f)) se t p")                ///
 			  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared" F-sta RMSE MSS RSS Obs))      ///
 			  legend label  varlabels(_cons A)  
 
@@ -1536,6 +1563,29 @@ preserve
         return scalar elpgginib   	= `elpgginib'
         return scalar elspgmub    	= `elspgmub'
         return scalar elspgginib  	= `elspgginib'
+	
+	if ("`grouped'" != "") {
+		return scalar agq = `gqg'[1,1]
+		return scalar bgq = `gqg'[1,2]
+		return scalar cgq = `gqg'[1,3]
+    }
+    else {
+        return scalar agq = `gq'[1,1]
+        return scalar bgq = `gq'[1,2]
+        return scalar cgq = `gq'[1,3]
+    }
+
+    if ("`grouped'" != "") {
+		 return scalar theta   =   `cofbg'[1,3]
+         return scalar gama    =   `cofbg'[1,1]
+         return scalar delta   =   `cofbg'[1,2]
+    }
+    else {
+         return scalar theta   =   `cofb'[1,3]
+         return scalar gama    =   `cofb'[1,1]
+         return scalar delta   =   `cofb'[1,2]
+    }
+
 	if ("`nochecks'" != "") {
         return scalar check1b   	= 1
         return scalar check2b   	= 1
@@ -1560,3 +1610,36 @@ preserve
 restore
 	
 end
+
+
+
+********************************************************************************
+* cleanversion ado
+*! v 1.0 	4apr2020 							by	JPA		cleanversion
+********************************************************************************
+
+cap: program drop cleanversion
+program define cleanversion, rclass
+
+	version 8.0
+	
+	syntax , input(string) lookfor(string) [keep(string)]
+		
+		local _length 	= length("`input'")
+		local maxi    	= `_length'
+		local _count 	= 0
+		
+		local x = strpos("`input'","`lookfor'")
+
+		local prefix 	= substr("`input'",1,`x')
+		
+		local sufix 	= subinstr(subinstr("`input'","`prefix'","",.), "." , "", .)
+		
+		local output	= `prefix'`sufix'
+		
+		return scalar result1 = `output'
+		return local  result2 =	"`prefix'`sufix'"
+
+end 
+
+

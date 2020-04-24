@@ -52,11 +52,17 @@
 !/src/*.dta
 !/src/*.txt
 
+!/archive/**/*.do
+
 # Documentation
 !/doc/*.md
 !/doc/*.log
 !/doc/*.png
 !/doc/*.pdf
+
+# csv files in selected output folders
+!results/*.csv
+
 
 # csv files in selected input folders
 !qa/*.csv
