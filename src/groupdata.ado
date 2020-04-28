@@ -72,8 +72,9 @@ program define groupdata, rclass
           ]
 
 
-  preserve
+quietly {
 
+  preserve
 *-----------------------------------------------------------------------------
 * 	Temp names
 *-----------------------------------------------------------------------------
@@ -308,60 +309,57 @@ program define groupdata, rclass
 * 	Mean values
 *-----------------------------------------------------------------------------
 
-  	* generate mean values if unit record data is provided
+  	* generate mean values for unit record estimations
   	if ("`type'" == "") {
+	    if (`mu' == -99) {
+        * generate mean and stadard deviation for unit record data
+  		  sum `inc' [`weight2'`exp']			if `touse'
+  		  local mu = `r(mean)'
 
-  	    if (`mu' == -99) {
-
-  			* generate mean and stadard deviation for unit record data
-  			sum `inc' [`weight2'`exp']			if `touse'
-  			local mu = `r(mean)'
-
-              sum `lnmpce' [`weight2'`exp']		if `touse'
-              local lnmu = r(mean)
-              local lnsd = r(sd)
-          }
-
-          if (`mu') != -99 {
-  			* use the mean provided as an option
-  			sum `lnmpce' [`weight2'`exp']		if `touse'
-              local lnmu = ln(`mu')
-              local lnsd = r(sd)
-          }
+        sum `lnmpce' [`weight2'`exp']		if `touse'
+        local lnmu = r(mean)
+        local lnsd = r(sd)
+      }
+      if (`mu') != -99 {
+			* use the mean provided as an option
+			  sum `lnmpce' [`weight2'`exp']		if `touse'
+        local lnmu = ln(`mu')
+        local lnsd = r(sd)
+      }
   	}
 
-
+    * generate mean values for group data estimations
   	if ("`type'" != "") {
-
-  			local lnmu = ln(`mu')
-
-  			if (`sd' == -99) {
-  				sum `lnmpce' [`weight2'`exp']	if `touse'
-  				local lnmu = ln(`mu')
-  				local lnsd = r(sd)
-  *				local lnsd = ln(.5)
-  			}
-
-  			else {
+      * mean value is provided by the command as a parameters
+      local lnmu = ln(`mu')
+			if (`sd' == -99) {
+				sum `lnmpce' [`weight2'`exp']	if `touse'
+				local lnmu = ln(`mu')
+				local lnsd = r(sd)
+*				local lnsd = ln(.5)
+			}
+			else {
   				local lnsd = ln(`sd')
-  			}
+			}
+      * keep only group data
+			keep if `touse'
 
-  			keep if `touse'
-
-  			local N = _N
-
-  			if (`N' < 24) {
-  				set obs 32
-  			}
+      * increase the number of rows to match what is required by
+      * output matrix (32 rows)
+			local N = _N
+			if (`N' < 24) {
+				set obs 32
+			}
   	}
 
 
 *-----------------------------------------------------------------------------
-* 	Unit Record
+* 	Unit Record estimations used to benchmark results
 *-----------------------------------------------------------------------------
 
 		if ("`benchmark'" == "benchmark") {
 
+      * create  counter
       local ppp = 0
 
       `noidebug' foreach z in `zl' {
@@ -918,6 +916,8 @@ program define groupdata, rclass
       mat `cofbg' = e(b)
 
     }
+
+  }
 
         /**************************************
         ** Test
@@ -1738,6 +1738,8 @@ program define groupdata, rclass
   return local  zlines  "`zl'"
   return scalar zl      = `Npline'
   return matrix results = `rtmp'
+
+
 
 end
 
