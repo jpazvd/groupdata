@@ -321,9 +321,9 @@ quietly {
 			* create row labels for output matrix
 			local rownames_unitrecord " fgt0 fgt1 fgt2 gini "
 			local ppp = `ppp' + 1
-			`noidebug' dis as error "AQUI"
+*			`noidebug' dis as error "AQUI"
 		}
-		`noidebug' dis as error "AQUI2"
+*		`noidebug' dis as error "AQUI2"
 	}
 	else{
 		foreach z in `zl' {
@@ -340,7 +340,7 @@ quietly {
 			* create row labels for output matrix
 			local rownames_unitrecord " fgt0 fgt1 fgt2 gini "
 			local ppp = `ppp' + 1
-			`noidebug' dis as error "AQUI"
+*			`noidebug' dis as error "AQUI"
 		}		
 	}
 	
@@ -1154,12 +1154,12 @@ quietly {
     }
 
 *-----------------------------------------------------------------------------
- * 	Output
+ * 	Output dataset
 *-----------------------------------------------------------------------------
 
       `noidebug' di as text "Store results"
 
-      tempvar pline seq bin
+      tempvar pline seq bin mean
 
       local Npline = wordcount("`zl'")
 
@@ -1174,6 +1174,8 @@ quietly {
       cap: gen `var'     = .
       cap: gen `value'   = .
       cap: gen `bin'     = .
+      cap: gen `mean'    = .
+	  
 
       cap: replace `pline'   = ""
       cap: replace `seq'     = .
@@ -1182,9 +1184,11 @@ quietly {
       cap: replace `var'     = .
       cap: replace `value'   = .
       cap: replace `bin'     = .
+      cap: replace `mean'    = .
 
       replace `pline' = "Poverty line: `z'"
       replace `seq'   = `z'
+      replace `mean'   = `mu'
       replace `var'   = _n in 1/32
       replace `bin'   = `bins'
 
@@ -1329,9 +1333,9 @@ quietly {
       label values `var'    var
       label values `value'  value
 
-  		label var `model' Model
-  		label var `type2' Type
-  		label var `var'   Indicator
+  	  label var `model' Model
+  	  label var `type2' Type
+  	  label var `var'   Indicator
 
 *-----------------------------------------------------------------------------
 * Display Lorenz
@@ -1515,9 +1519,9 @@ quietly {
 
     tempname tmp`pl'
 
-		mkmat  `seq' `var' `model' `type2' `value' if `value' != . , matrix(`tmp`pl'')
+		mkmat  `seq' `mean' `var' `model' `type2' `value' if `value' != . , matrix(`tmp`pl'')
 
-		matrix colnames `tmp`pl'' = povline indicator model type value
+		matrix colnames `tmp`pl'' = povline mean indicator model type value
 
 		mat check = `tmp`pl''
 
@@ -1600,10 +1604,6 @@ quietly {
 
   return add
 
-  *** PROBLEM WITH BENCHMARK OPTION IS NOT SELECTED
-  *** IF YOU COMMENT OUT THE { BELOW, AND DISCARD THE CODE
-  *** WITHOUT THE BENCHMARK OPTION WILL RUN; HOWEVER THE CODE WITH
-  *** THE BENCHMARK OPTION WILL HAVE AND ERROR
  }
 
 end
