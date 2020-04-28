@@ -321,9 +321,9 @@ quietly {
 			* create row labels for output matrix
 			local rownames_unitrecord " fgt0 fgt1 fgt2 gini "
 			local ppp = `ppp' + 1
-			dis as error "AQUI"
+			`noidebug' dis as error "AQUI"
 		}
-		dis as error "AQUI2"
+		`noidebug' dis as error "AQUI2"
 	}
 	else{
 		foreach z in `zl' {
@@ -340,7 +340,7 @@ quietly {
 			* create row labels for output matrix
 			local rownames_unitrecord " fgt0 fgt1 fgt2 gini "
 			local ppp = `ppp' + 1
-			dis as error "AQUI"
+			`noidebug' dis as error "AQUI"
 		}		
 	}
 	
