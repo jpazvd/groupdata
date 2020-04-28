@@ -1,7 +1,9 @@
 *-----------------------------------------------------------------------------
 *! v 2.8  28apr2020             by  JPA
+* support welfare estimations based on provided coefficients
 * add multiple mean options
 * add debug milestones
+* return matrix includes mean, sd, and povline
 * v 2.7  24apr2020             by  JPA
 * fix estiamtes using unit record data
 * estimate multiple lines
@@ -51,7 +53,7 @@ program define groupdata, rclass
 
   version 15.0
 
-  syntax varlist(numeric min=1 max=1)         ///
+  syntax [ varlist(numeric min=1 max=1) ]         ///
     [in] [if]                   ///
     [fweight aweight pweight]   ///
       ,                         ///
@@ -87,7 +89,8 @@ quietly {
 	tempname A  gq cofb cof  gqg cofbg tmp rtmp
 	tempvar  temp touse rnd lninc lnmpce mpce pp pw L p y1 y2 a b c  x1 x2  Lg pg yg ag bg cg yg2 x1g x2g  type2 model var value
 	
-
+	local skip = 0
+	
   *-----------------------------------------------------------------------------
   * Set default values
   *-----------------------------------------------------------------------------
@@ -129,703 +132,723 @@ quietly {
 		noi di ""
 	}
 	
+	* check coef option / both vectors must be specified
+	if ("`coefb'" != "") | ("`coefbgq" != "") & ("`type'" == "") & ("`grouped'" == "") {
+		if ("`coefb'" == "") {
+			noi di ""
+			di as err "Both vectors of coeficients must be specified. see help."
+			exit 198
+		}
+		if ("`coefgq'" == "") {
+			noi di ""
+			di as err "Both vectors of coeficients must be specified. see help."
+			exit 198
+		}
+		local skip = 1
+		local type = -88
+	}
 *-----------------------------------------------------------------------------
 * 	Weights
 *-----------------------------------------------------------------------------
 
-	* keep original weights
-	local wtg2 = "`weight'"
-	local weight2 = "`weight'"
-	local exp2 = subinstr("`exp'","=","",.)
+	if (`skip' != 1) {
+ 
 
-	* set-up weights when it is not available
-	if ("`weight'" == "") {
-		tempvar wtg
-		gen `wtg' = 1
-		loc weight "fw"
-		loc exp    "=`wtg'"
-		local pop "`wtg'"
-		local `mpce' = `pop'
-	}
-	else {
-		local pop =subinstr("`exp'","=","",.)
-		local `mpce' = `pop'
-  }
-	
-*-----------------------------------------------------------------------------
-* checks with Type 1 is selected
-	if ("`type'" == "1") {
-	   if ("`wtg2'" == "") {
-			noi di as err "Type 1 only accepts accept AW."
+		* keep original weights
+		local wtg2 = "`weight'"
+		local weight2 = "`weight'"
+		local exp2 = subinstr("`exp'","=","",.)
+
+		* set-up weights when it is not available
+		if ("`weight'" == "") {
+			tempvar wtg
+			gen `wtg' = 1
+			loc weight "fw"
+			loc exp    "=`wtg'"
+			local pop "`wtg'"
+			local `mpce' = `pop'
+		}
+		else {
+			local pop =subinstr("`exp'","=","",.)
+			local `mpce' = `pop'
+	  }
+		
+	*-----------------------------------------------------------------------------
+	* checks with Type 1 is selected
+		if ("`type'" == "1") {
+		   if ("`wtg2'" == "") {
+				noi di as err "Type 1 only accepts accept AW."
+				exit 198
+			}
+			if strmatch("pweight","*`wtg2'*") == 1 {
+				noi di as err "Type 1 only accepts accept AW."
+				exit 198
+			}
+			if strmatch("fweight","*`wtg2'*") == 1 {
+				noi di as err "Type 1 only accepts accept AW."
+				exit 198
+			}
+		}
+
+	  *-----------------------------------------------------------------------------
+	  * checks with Type 2 is selected
+		if ("`type'" == "2") {
+		if ("`wtg2'" == "") {
+			noi di as err "Type 2 only accepts accept AW."
 			exit 198
 		}
 		if strmatch("pweight","*`wtg2'*") == 1 {
-			noi di as err "Type 1 only accepts accept AW."
+			noi di as err "Type 2 only accepts accept AW."
 			exit 198
 		}
 		if strmatch("fweight","*`wtg2'*") == 1 {
-			noi di as err "Type 1 only accepts accept AW."
+			noi di as err "Type 2 only accepts accept AW."
 			exit 198
 		}
-	}
-
-  *-----------------------------------------------------------------------------
-  * checks with Type 2 is selected
-	if ("`type'" == "2") {
-  	if ("`wtg2'" == "") {
-  		noi di as err "Type 2 only accepts accept AW."
-  		exit 198
-  	}
-  	if strmatch("pweight","*`wtg2'*") == 1 {
-  		noi di as err "Type 2 only accepts accept AW."
-  		exit 198
-  	}
-  	if strmatch("fweight","*`wtg2'*") == 1 {
-  		noi di as err "Type 2 only accepts accept AW."
-  		exit 198
-  	}
-	}
-
-*-----------------------------------------------------------------------------
-* checks with Type 5 is selected
-	if ("`type'" == "5") {
-		if (substr(trim("`wtg2'"),1,2) == "aw") {
-			noi di as err "Type 5 does not accept AW weights. Please use either PW, FW or no weights."
-			exit 198
 		}
-		if strmatch("pweight","*`wtg2'*") == 1 {
-			local weight2 = "aweight"
+
+	*-----------------------------------------------------------------------------
+	* checks with Type 5 is selected
+		if ("`type'" == "5") {
+			if (substr(trim("`wtg2'"),1,2) == "aw") {
+				noi di as err "Type 5 does not accept AW weights. Please use either PW, FW or no weights."
+				exit 198
+			}
+			if strmatch("pweight","*`wtg2'*") == 1 {
+				local weight2 = "aweight"
+			}
 		}
-	}
 
-*-----------------------------------------------------------------------------
-* checks with Type 6 is selected
-	if ("`type'" == "6") {
-		if (substr(trim("`wtg2'"),1,2) == "aw") {
-			noi di as err "Type 6 does not accept AW weights. Please use either PW, FW or no weights."
-			exit 198
+	*-----------------------------------------------------------------------------
+	* checks with Type 6 is selected
+		if ("`type'" == "6") {
+			if (substr(trim("`wtg2'"),1,2) == "aw") {
+				noi di as err "Type 6 does not accept AW weights. Please use either PW, FW or no weights."
+				exit 198
+			}
+			if strmatch("pweight","*`wtg2'*") == 1 {
+				local weight2 = "aweight"
+			}
 		}
-		if strmatch("pweight","*`wtg2'*") == 1 {
-			local weight2 = "aweight"
-		}
-	}
 
-*-----------------------------------------------------------------------------
-* Download and install required user written ado's
-*-----------------------------------------------------------------------------
-* Fill this list will all user-written commands this project requires
+	*-----------------------------------------------------------------------------
+	* Download and install required user written ado's
+	*-----------------------------------------------------------------------------
+	* Fill this list will all user-written commands this project requires
 
-	local user_commands groupfunction alorenz which_version apoverty ainequal estout
+		local user_commands groupfunction alorenz which_version apoverty ainequal estout
 
-* Loop over all the commands to test if they are already installed, if not, then install
-	qui foreach command of local user_commands {
-		cap which `command'
-		if _rc == 111 {
-			ssc install `command'
-	   }
-     else {
-      * check version number
-		  which_version groupfunction
-      * clean version number
-		  cleanversion, input(`s(version)') lookfor(.)
-	    * condition
-		  if  (`r(result1)' < 2.0) {
-			  ado update groupfunction , update
-		  }
-      * check version number
-		  which_version alorenz
-      * clean version number
-		  cleanversion, input(`s(version)') lookfor(.)
-      * condition
-		  if  (`r(result1)' < 3.1) {
-			  ado update alorenz , update
+	* Loop over all the commands to test if they are already installed, if not, then install
+		qui foreach command of local user_commands {
+			cap which `command'
+			if _rc == 111 {
+				ssc install `command'
+		   }
+		 else {
+		  * check version number
+			  which_version groupfunction
+		  * clean version number
+			  cleanversion, input(`s(version)') lookfor(.)
+			* condition
+			  if  (`r(result1)' < 2.0) {
+				  ado update groupfunction , update
+			  }
+		  * check version number
+			  which_version alorenz
+		  * clean version number
+			  cleanversion, input(`s(version)') lookfor(.)
+		  * condition
+			  if  (`r(result1)' < 3.1) {
+				  ado update alorenz , update
+			  }
 		  }
 	  }
-  }
 
-*-----------------------------------------------------------------------------
-* 	Display Options
-*-----------------------------------------------------------------------------
+	*-----------------------------------------------------------------------------
+	* 	Display Options
+	*-----------------------------------------------------------------------------
 
-	* show regression outputs
-	if ("`regress'" != "") {
-		loc noireg "noi "
-	}
-	else {
-		loc noireg ""
-	}
-
-	* does not show lorenz
-	if ("`nolorenz'" != "") {
-		loc noilor ""
-	}
-	else {
-		loc noilor "noi"
-	}
-
-	* does not show elasticities
-	if ("`noelasticities'" != "") {
-		loc noelast ""
-	}
-	else {
-		loc noelast "noi"
-	}
-
-	* does not show checks
-	if ("`nochecks'" != "") {
-		loc nocheck ""
-	}
-	else {
-		loc nocheck "noi"
-	}
-
-	* debug
-	if ("`debug'" == "") {
-		loc noidebug 
-	}
-	else {
-		loc noidebug noi:
-	}
-
-*-----------------------------------------------------------------------------
-* 	Filters
-*-----------------------------------------------------------------------------
-
-	tokenize `varlist'
-	local inc `1'
-	mark `touse' `if' `in' [`weight'`exp']
-	* remove missing values from estiamte
-	markout `touse'  `varlist'
-
-*-----------------------------------------------------------------------------
-* 	Data sort
-*-----------------------------------------------------------------------------
-
-	set seed 1234568
-  gen double `rnd' = uniform()		if `touse'
-  gen `lninc' 	= ln(`inc') 			if `touse'
-	gen `lnmpce' 	= ln(`inc') 			if `touse'
-  sort `inc' `rnd'
-
-*-----------------------------------------------------------------------------
-* 	Unit Record estimations used to benchmark results
-*-----------------------------------------------------------------------------
-
-  `noidebug' di as text "Unit Record estimations used to benchmark results"
-
-	qui if ("`benchmark'" == "benchmark") {
-    * create  counter
-    local ppp = 0
-	if ("`noidebug'"==""){
-		foreach z in `zl' {
-		
-			local pl "pl`ppp'"
-			* unit record poverty estimates
-			apoverty `inc' [`weight'`exp'] 	if `touse', line(`z')  fgt3  pgr
-			local `pl'afgt0 = r(head_1)
-			local `pl'afgt1 = r(pogapr_1)
-			local `pl'afgt2 = r(fogto3_1)
-			* unit record inequality estimates
-			ainequal `inc' [`weight'`exp']  if `touse'
-			local `pl'agini = r(gini_1)
-			* create row labels for output matrix
-			local rownames_unitrecord " fgt0 fgt1 fgt2 gini "
-			local ppp = `ppp' + 1
-*			`noidebug' dis as error "AQUI"
+		* show regression outputs
+		if ("`regress'" != "") {
+			loc noireg "noi "
 		}
-*		`noidebug' dis as error "AQUI2"
-	}
-	else{
-		foreach z in `zl' {
+		else {
+			loc noireg ""
+		}
+
+		* does not show lorenz
+		if ("`nolorenz'" != "") {
+			loc noilor ""
+		}
+		else {
+			loc noilor "noi"
+		}
+
+		* does not show elasticities
+		if ("`noelasticities'" != "") {
+			loc noelast ""
+		}
+		else {
+			loc noelast "noi"
+		}
+
+		* does not show checks
+		if ("`nochecks'" != "") {
+			loc nocheck ""
+		}
+		else {
+			loc nocheck "noi"
+		}
+
+		* debug
+		if ("`debug'" == "") {
+			loc noidebug 
+		}
+		else {
+			loc noidebug noi:
+		}
+
+	*-----------------------------------------------------------------------------
+	* 	Filters
+	*-----------------------------------------------------------------------------
+
+		tokenize `varlist'
+		local inc `1'
+		mark `touse' `if' `in' [`weight'`exp']
+		* remove missing values from estiamte
+		markout `touse'  `varlist'
+
+	*-----------------------------------------------------------------------------
+	* 	Data sort
+	*-----------------------------------------------------------------------------
+
+		set seed 1234568
+	  gen double `rnd' = uniform()		if `touse'
+	  gen `lninc' 	= ln(`inc') 			if `touse'
+		gen `lnmpce' 	= ln(`inc') 			if `touse'
+	  sort `inc' `rnd'
+
+	*-----------------------------------------------------------------------------
+	* 	Unit Record estimations used to benchmark results
+	*-----------------------------------------------------------------------------
+
+	  `noidebug' di as text "Unit Record estimations used to benchmark results"
+
+		qui if ("`benchmark'" == "benchmark") {
+		* create  counter
+		local ppp = 0
+		if ("`noidebug'"==""){
+			foreach z in `zl' {
+			
+				local pl "pl`ppp'"
+				* unit record poverty estimates
+				apoverty `inc' [`weight'`exp'] 	if `touse', line(`z')  fgt3  pgr
+				local `pl'afgt0 = r(head_1)
+				local `pl'afgt1 = r(pogapr_1)
+				local `pl'afgt2 = r(fogto3_1)
+				* unit record inequality estimates
+				ainequal `inc' [`weight'`exp']  if `touse'
+				local `pl'agini = r(gini_1)
+				* create row labels for output matrix
+				local rownames_unitrecord " fgt0 fgt1 fgt2 gini "
+				local ppp = `ppp' + 1
+	*			`noidebug' dis as error "AQUI"
+			}
+	*		`noidebug' dis as error "AQUI2"
+		}
+		else{
+			foreach z in `zl' {
+			
+				local pl "pl`ppp'"
+				* unit record poverty estimates
+				apoverty `inc' [`weight'`exp'] 	if `touse', line(`z')  fgt3  pgr
+				local `pl'afgt0 = r(head_1)
+				local `pl'afgt1 = r(pogapr_1)
+				local `pl'afgt2 = r(fogto3_1)
+				* unit record inequality estimates
+				ainequal `inc' [`weight'`exp']  if `touse'
+				local `pl'agini = r(gini_1)
+				* create row labels for output matrix
+				local rownames_unitrecord " fgt0 fgt1 fgt2 gini "
+				local ppp = `ppp' + 1
+	*			`noidebug' dis as error "AQUI"
+			}		
+		}
 		
-			local pl "pl`ppp'"
-			* unit record poverty estimates
-			apoverty `inc' [`weight'`exp'] 	if `touse', line(`z')  fgt3  pgr
-			local `pl'afgt0 = r(head_1)
-			local `pl'afgt1 = r(pogapr_1)
-			local `pl'afgt2 = r(fogto3_1)
-			* unit record inequality estimates
-			ainequal `inc' [`weight'`exp']  if `touse'
-			local `pl'agini = r(gini_1)
-			* create row labels for output matrix
-			local rownames_unitrecord " fgt0 fgt1 fgt2 gini "
-			local ppp = `ppp' + 1
-*			`noidebug' dis as error "AQUI"
-		}		
-	}
-	
-	}
+		}
 
-*-----------------------------------------------------------------------------
-* 	Unit Record
-*-----------------------------------------------------------------------------
+	*-----------------------------------------------------------------------------
+	* 	Unit Record
+	*-----------------------------------------------------------------------------
 
-  if ("`unitrecord'" == "unitrecord") {
+	  if ("`unitrecord'" == "unitrecord") {
 
-    `noidebug' di as text "Unit Record estimations"
-		noi di ""
-		noi di ""
-		noi di "Estimation using unit record information."
+		`noidebug' di as text "Unit Record estimations"
+			noi di ""
+			noi di ""
+			noi di "Estimation using unit record information."
 
-    ************************************
-    ** cumulative distribution
-    ************************************
+		************************************
+		** cumulative distribution
+		************************************
 
-    egen double `pw' = pc(`inc')			if `touse', prop
-    egen double `pp' = pc(`pop')			if `touse', prop
+		egen double `pw' = pc(`inc')			if `touse', prop
+		egen double `pp' = pc(`pop')			if `touse', prop
 
-    gen double 	`L' = `pw'					if `touse'
-    replace 	`L' = `pw'+`L'[_n-1] in 2/l	if `touse'
+		gen double 	`L' = `pw'					if `touse'
+		replace 	`L' = `pw'+`L'[_n-1] in 2/l	if `touse'
 
-    gen double 	`p' = `pp'					if `touse'
-    replace 	`p' = `pp'+`p'[_n-1] in 2/l	if `touse'
+		gen double 	`p' = `pp'					if `touse'
+		replace 	`p' = `pp'+`p'[_n-1] in 2/l	if `touse'
 
-    ************************************
-    ** generate variables (GQ Lorenz Curve)
-    ************************************
+		************************************
+		** generate variables (GQ Lorenz Curve)
+		************************************
 
-    gen double `y1' = `L'*(1-`L')			if `touse'
-    gen double `a' 	= ((`p'^2)-`L')			if `touse'
-    gen double `b' 	= `L'*(`p'-1)			if `touse'
-    gen double `c' 	= (`p'-`L')				if `touse'
+		gen double `y1' = `L'*(1-`L')			if `touse'
+		gen double `a' 	= ((`p'^2)-`L')			if `touse'
+		gen double `b' 	= `L'*(`p'-1)			if `touse'
+		gen double `c' 	= (`p'-`L')				if `touse'
 
-    ************************************
-    ** generate variables Beta Lorenz Curve
-    ************************************
+		************************************
+		** generate variables Beta Lorenz Curve
+		************************************
 
-    gen double `y2'	=	ln(`p'-`L')			if `touse'
-    gen double `x1'	=	ln(`p')				if `touse'
-    gen double `x2'	=	ln(1-`p')			if `touse'
+		gen double `y2'	=	ln(`p'-`L')			if `touse'
+		gen double `x1'	=	ln(`p')				if `touse'
+		gen double `x2'	=	ln(1-`p')			if `touse'
 
-    local last = _N-1
+		local last = _N-1
 
-  ************************************
-	** Plot Figure
-  ************************************
+	  ************************************
+		** Plot Figure
+	  ************************************
+
+			if ("`nofigures'" == "") {
+
+				local mustr = strofreal(`mu',"%9.2f")
+				local intercept00 = _N + 1
+				replace `L' = 0 in `intercept00'
+				replace `p' = 0 in `intercept00'
+
+				graph twoway lowess `L' `p'		if `touse', 						///
+					ytitle("Lorenz") xtitle("Population (Cumulative)") 				///
+					note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
+
+				kdensity `inc' 					if `touse', 						///
+					xline(`z') xtitle("`inc'") name(pdf, replace)
+
+				graph twoway lowess `inc' `p'	if `touse', 						///
+					yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
+					note("mean: `mustr' [`bins' bins]") name("pen", replace)
+
+			}
+
+		************************************
+		** Estimation: GQ Lorenz Curve
+		************************************
+		`noidebug' di as text "Unit Record : Estimation: GQ Lorenz Curve"
+
+			label var `y1' 	"`inc'"
+			label var `a'  	"A"
+			label var `b' 	"B"
+			label var `c'	"C"
+
+		qui reg `y1' `a' `b' `c' in 1/`last' if `touse', noconstant
+		est store coefgq
+		mat `gq' = e(b)
+		mat `cof' = e(b)
+
+		************************************
+		** Estimation: Beta Lorenz Curve
+		************************************
+
+		`noidebug' di as text "Unit Record : Beta Lorenz Curve"
+
+			label var `y2' 	"`inc'"
+			label var `x1'	"B"
+			label var `x2'	"C"
+
+		qui reg `y2' `x1' `x2' in 1/`last' if `touse'
+		est store coefbeta
+		mat `cofb' = e(b)
+
+	  }
+
+	*-----------------------------------------------------------------------------
+	* Group data provided
+	* Need to specify the Type of Group data provided
+	*-----------------------------------------------------------------------------
+
+	  qui if ("`type'" != "") {
+
+		`noidebug' di as text "Group Data : Type `type'"
+
+			noi di ""
+			noi di ""
+			noi di "Estimation using provided distribution (Type `type')"
+
+			if ("`type'" == "1") {
+				noi di ""
+				noi di "Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative proportion of income held by that proportion of the population"
+			}
+			if ("`type'" == "2") {
+				noi di ""
+				noi di "Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype"
+			}
+			if ("`type'" == "5") {
+				noi di ""
+				noi di "Type 5 grouped data: W=Percentage of the population in a given interval of incomes, X=The mean income of that interval"
+			}
+			if ("`type'" == "6") {
+				noi di "Type 6 grouped data: W=Percentage of the population in a given interval of incomes, X=The max income of that interval"
+			}
+
+	************************************
+	** Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative proportion of income held by that proportion of the population
+	************************************
+
+		if ("`type'" == "1") {
+			sum `inc'									if `touse'
+			local bins = r(N)
+			local last = `bins'-1
+			if (substr(trim("`wtg2'"),1,2) == "aw") {
+				gen `Lg' = `inc'/100					if `touse'
+				gen `pg' = `exp2'/100					if `touse'
+			}
+		}
+
+	************************************
+	** Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype
+	************************************
+
+		if ("`type'" == "2") {
+			sum `inc'										if `touse'
+			local bins = r(N)
+			local last = `bins'-1
+			if (substr(trim("`wtg2'"),1,2) == "aw") {
+				gen `Lg' = `inc'/100						if `touse'
+				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+				gen `pg' = `exp2'/100						if `touse'
+				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+			}
+		}
+
+	************************************
+	** Type 5 grouped data: W=Percentage of the population in a given interval of incomes, X=The mean income of that interval
+	************************************
+
+		if ("`type'" == "5") {
+		*set trace on
+			sum `inc'											if `touse'
+			local bins = r(N)
+			local last = `bins'-1
+			if ("`wtg2'" == "") {
+				gen double 	`pg' 	= 	1/`bins'				if `touse'
+				replace 	`pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+				sum `inc'										if `touse'
+				local sumL = r(sum)
+				gen double 	`Lg' = `inc'/`sumL'					if `touse'
+				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l		if `touse'
+				`noidebug' list `pg' `inc' `Lg' `LLLLL' `PPPPP'
+			}
+
+			if (substr(trim("`wtg2'"),1,2) == "pw") {
+				tempvar LLLLL PPPPP
+				gen 	`pg' = `exp2'
+				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l
+				gen double `PPPPP' = `exp2'*`inc'*100000
+				sum `PPPPP'
+				local sumL = r(sum)
+				gen double 	`LLLLL' = `PPPPP'/`sumL'
+				replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] in 2/l
+				gen double `Lg' = `LLLLL'
+				`noidebug' list `pg' `inc' `Lg' `LLLLL' `PPPPP'
+			}
+
+
+			if (substr(trim("`wtg2'"),1,2) == "fw") {
+				sum `exp2'									if `touse'
+				local sumP = r(sum)
+				gen double 	`pg' = `exp2'/`sumP'			if `touse'
+				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+				sum `inc' 	[`weight'`exp']					if `touse'
+				local sumL = r(sum)
+				gen doulbe 	`Lg' = `inc'/`sumL'				if `touse'
+				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+			}
+		}
+
+	************************************
+	** Type 6 grouped data: W=Percentage of the population in a given interval of incomes, X=The max income of that interval
+	************************************
+
+		tempvar inc2 delta
+		if ("`type'" == "6") {
+		  * mean welare
+			sum `inc'															if `touse'
+			local bins = r(N)
+			local bins = `bins'+1
+			local last = `bins'-1
+		  *identify min and max per bin
+			noi di "min: " `min'
+			noi di "max: " `max'
+			noi di "bins: " `bins'
+		  * if weights are not specified
+			if ("`wtg2'" == "") {
+				gen double 	`pg' 	= 	1/`bins'								if `touse'
+				gen 	double `delta' = .
+				replace `delta' = (`inc'[_n]-`min')			/2 	in 1			if `touse'
+				replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'		if `touse'
+				replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'		if `touse'
+				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l						if `touse'
+				gen double `inc2' = .											if `touse'
+				replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
+				replace `inc2' = `max' - `delta'				in `bins'		if `touse'
+				sum `inc2'														if `touse'
+				local sumL = r(sum)
+				gen double 	`Lg' = `inc2'/`sumL'								if `touse'
+				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l						if `touse'
+				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
+			}
+
+			if (substr(trim("`wtg2'"),1,2) == "pw") {
+				tempvar LLLLL PPPPP
+				gen double 	`pg' 	= 	`exp2'									if `touse'
+				gen 	double `delta' = .										if `touse'
+				replace `delta' = (`inc'[_n]-`min')			/2 	in 1			if `touse'
+				replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'		if `touse'
+				replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'		if `touse'
+				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l						if `touse'
+				gen double `inc2' = .											if `touse'
+				replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
+				replace `inc2' = `max' - `delta'				in `bins'		if `touse'
+				gen double `PPPPP' = `exp2'*`inc2'*100000
+				sum `PPPPP'
+				local sumL = r(sum)
+				gen double 	`LLLLL' = `PPPPP'/`sumL'
+				replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] in 2/`bins'
+				gen double `Lg' = `LLLLL'
+				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
+			}
+
+			if (substr(trim("`wtg2'"),1,2) == "fw") {
+			sum `exp2'														if `touse'
+				local sumP = r(sum)
+				gen double 	`pg' = `exp2'/`sumP'								if `touse'
+
+				gen 	double `delta' = .										if `touse'
+				replace `delta' = (`inc'[_n]-`min')			/2 	in 1			if `touse'
+				replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'		if `touse'
+				replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'		if `touse'
+				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l						if `touse'
+				gen double `inc2' = .											if `touse'
+				replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
+				replace `inc2' = `max' - `delta'				in `bins'		if `touse'
+				sum `inc2'		[`weight'`exp']									if `touse'
+				local sumL = r(sum)
+				gen double 	`Lg' = `inc2'/`sumL'								if `touse'
+				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l						if `touse'
+				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
+			}
+		}
+
+	  ************************************
+	  ** Generate the cumulative distribution
+	  ************************************
+
+		sum `pg'
+		local s = r(sum)
+		if (`s'>99) {
+			gen double `p' = `pg'/100
+		}
+		else {
+			gen double `p' = `pg'
+		}
+
+		sum `Lg'
+		local s = r(sum)
+		if (`s'>99) {
+			gen double `L' = `Lg'/100
+		}
+		else {
+			gen double `L' = `Lg'
+		}
+
+	  ************************************
+	  ** Generate variables: GQ Lorenz Curve
+	  ************************************
+
+		gen double `y1' = `L'*(1-`L')
+		gen double `a' = ((`p'^2)-`L')
+		gen double `b' = `L'*(`p'-1)
+		gen double `c' = (`p'-`L')
+
+	  ************************************
+	  ** Generate variables: Beta Lorenz Curve
+	  ************************************
+
+		gen double `y2'=ln(`p'-`L')
+		gen double `x1'=ln(`p')
+		gen double `x2'=ln(1-`p')
+
+	  ************************************
+		** Plot Figure
+	  ************************************
 
 		if ("`nofigures'" == "") {
-
 			local mustr = strofreal(`mu',"%9.2f")
-			local intercept00 = _N + 1
+			local intercept00 = `bins' + 1
 			replace `L' = 0 in `intercept00'
 			replace `p' = 0 in `intercept00'
-
-			graph twoway lowess `L' `p'		if `touse', 						///
+		  * figure 1 - Lorenz
+		  graph twoway lowess `L' `p'		, 						///
 				ytitle("Lorenz") xtitle("Population (Cumulative)") 				///
 				note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
-
-			kdensity `inc' 					if `touse', 						///
+			* figure 2 - PDF
+			kdensity `inc' 					, 						///
 				xline(`z') xtitle("`inc'") name(pdf, replace)
-
-			graph twoway lowess `inc' `p'	if `touse', 						///
+			* figure 3 - Pen's parade
+			graph twoway lowess `inc' `p'	, 						///
 				yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
 				note("mean: `mustr' [`bins' bins]") name("pen", replace)
-
 		}
 
-    ************************************
-    ** Estimation: GQ Lorenz Curve
-    ************************************
-    `noidebug' di as text "Unit Record : Estimation: GQ Lorenz Curve"
+		`noidebug' list `Lg' `L' `pg' `p'  `y1' `a' `b' `c'  `y2' `x1' `x2' if `y1' !=.
 
-		label var `y1' 	"`inc'"
-		label var `a'  	"A"
-		label var `b' 	"B"
-		label var `c'	"C"
+	************************************
+	** Estimation: GQ Lorenz Curve (Group data provided)
+	************************************
 
-    qui reg `y1' `a' `b' `c' in 1/`last' if `touse', noconstant
-    est store coefgq
-    mat `gq' = e(b)
-    mat `cof' = e(b)
+		`noidebug' di as text "Group data provided: GQ Lorenz Curve"
 
-    ************************************
-    ** Estimation: Beta Lorenz Curve
-    ************************************
+		label var `y1' 	 "`inc'"
+		label var `a'  	 "A"
+		label var `b' 	 "B"
+		label var `c'	 "C"
 
-    `noidebug' di as text "Unit Record : Beta Lorenz Curve"
+		qui reg `y1' `a' `b' `c' in 1/`last' , noconstant
+		est store coefgq
+		mat `gq' = e(b)
+		mat `cof' = e(b)
+
+	************************************
+	** Estimation: Beta Lorenz Curve (Group data provided)
+	************************************
+
+		`noidebug' di as text "Group data provided: Beta Lorenz Curve"
 
 		label var `y2' 	"`inc'"
 		label var `x1'	"B"
 		label var `x2'	"C"
 
-    qui reg `y2' `x1' `x2' in 1/`last' if `touse'
-    est store coefbeta
-    mat `cofb' = e(b)
+		qui reg `y2' `x1' `x2' in 1/`last'
+		est store coefbeta
+		mat `cofb' = e(b)
 
-  }
+	  }
 
-*-----------------------------------------------------------------------------
-* Group data provided
-* Need to specify the Type of Group data provided
-*-----------------------------------------------------------------------------
+	*-----------------------------------------------------------------------------
+	* Unite Records is provided
+	* Group data is estimated by Groupdata ado
+	*-----------------------------------------------------------------------------
 
-  qui if ("`type'" != "") {
-
-    `noidebug' di as text "Group Data : Type `type'"
-
-		noi di ""
-		noi di ""
-		noi di "Estimation using provided distribution (Type `type')"
-
-		if ("`type'" == "1") {
+	  qui if ("`grouped'" == "grouped") {
 			noi di ""
-			noi di "Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative proportion of income held by that proportion of the population"
+			noi di "Estimation using grouped data..."
+
+		** cumulative distribution (grouped data)
+		if (`bins'!= 0) {
+			if (`bins' == -99) {
+			* if bins are not specified the default value is 20 bins
+				local bins = 20
+				noi di ""
+				noi di "... creating groupped data with `bins' bins."
+				noi di ""
+				alorenz `inc' [`weight'`exp']	if `touse', points(`bins')
+			}
+			else {
+				noi di ""
+				noi di "... creating groupped data with `bins' bins."
+				noi di ""
+				alorenz `inc' [`weight'`exp']	if `touse', points(`bins')
+			}
 		}
-		if ("`type'" == "2") {
-			noi di ""
-			noi di "Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype"
-		}
-		if ("`type'" == "5") {
-			noi di ""
-			noi di "Type 5 grouped data: W=Percentage of the population in a given interval of incomes, X=The mean income of that interval"
-		}
-		if ("`type'" == "6") {
-			noi di "Type 6 grouped data: W=Percentage of the population in a given interval of incomes, X=The max income of that interval"
-		}
+		* extract return matrix
+			mat `A' = r(lorenz1)
+		* export return matrix to dataset
+			svmat double `A'
+		* generate return matrix of dataset
+			return matrix data = `A'
 
-************************************
-** Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative proportion of income held by that proportion of the population
-************************************
+	  ** generate variables (GQ Lorenz Curve) (grouped data)
+		gen double `Lg' = `A'2/100
+		gen double `pg' = `A'4/100
+		gen double `yg' = `Lg'*(1-`Lg')
+		gen double `ag' = ((`pg'^2)-`Lg')
+		gen double `bg' = `Lg'*(`pg'-1)
+		gen double `cg' = (`pg'-`Lg')
 
-  	if ("`type'" == "1") {
-  		sum `inc'									if `touse'
-  		local bins = r(N)
-  		local last = `bins'-1
-  		if (substr(trim("`wtg2'"),1,2) == "aw") {
-  			gen `Lg' = `inc'/100					if `touse'
-  			gen `pg' = `exp2'/100					if `touse'
-  		}
-  	}
+		** generate variables Beta Lorenz Curve (Grouped data)
+		gen double `yg2' = ln(`pg'-`Lg')
+		gen double `x1g' = ln(`pg')
+		gen double `x2g' = ln(1-`pg')
+		local lastg = `bins'-1
 
-************************************
-** Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype
-************************************
-
-  	if ("`type'" == "2") {
-  		sum `inc'										if `touse'
-  		local bins = r(N)
-  		local last = `bins'-1
-  		if (substr(trim("`wtg2'"),1,2) == "aw") {
-  			gen `Lg' = `inc'/100						if `touse'
-  			replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
-  			gen `pg' = `exp2'/100						if `touse'
-  			replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
-  		}
-  	}
-
-************************************
-** Type 5 grouped data: W=Percentage of the population in a given interval of incomes, X=The mean income of that interval
-************************************
-
-  	if ("`type'" == "5") {
-  	*set trace on
-  		sum `inc'											if `touse'
-  		local bins = r(N)
-  		local last = `bins'-1
-  		if ("`wtg2'" == "") {
-  			gen double 	`pg' 	= 	1/`bins'				if `touse'
-  			replace 	`pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
-  			sum `inc'										if `touse'
-  			local sumL = r(sum)
-  			gen double 	`Lg' = `inc'/`sumL'					if `touse'
-  			replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l		if `touse'
-  			`noidebug' list `pg' `inc' `Lg' `LLLLL' `PPPPP'
-  		}
-
-  		if (substr(trim("`wtg2'"),1,2) == "pw") {
-  			tempvar LLLLL PPPPP
-  			gen 	`pg' = `exp2'
-  			replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l
-  			gen double `PPPPP' = `exp2'*`inc'*100000
-  			sum `PPPPP'
-  			local sumL = r(sum)
-  			gen double 	`LLLLL' = `PPPPP'/`sumL'
-  			replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] in 2/l
-  			gen double `Lg' = `LLLLL'
-  			`noidebug' list `pg' `inc' `Lg' `LLLLL' `PPPPP'
-  		}
-
-
-  		if (substr(trim("`wtg2'"),1,2) == "fw") {
-  			sum `exp2'									if `touse'
-  			local sumP = r(sum)
-  			gen double 	`pg' = `exp2'/`sumP'			if `touse'
-  			replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
-  			sum `inc' 	[`weight'`exp']					if `touse'
-  			local sumL = r(sum)
-  			gen doulbe 	`Lg' = `inc'/`sumL'				if `touse'
-  			replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
-  		}
-  	}
-
-************************************
-** Type 6 grouped data: W=Percentage of the population in a given interval of incomes, X=The max income of that interval
-************************************
-
-  	tempvar inc2 delta
-  	if ("`type'" == "6") {
-      * mean welare
-  		sum `inc'															if `touse'
-  		local bins = r(N)
-  		local bins = `bins'+1
-  		local last = `bins'-1
-      *identify min and max per bin
-  		noi di "min: " `min'
-  		noi di "max: " `max'
-  		noi di "bins: " `bins'
-      * if weights are not specified
-  		if ("`wtg2'" == "") {
-  			gen double 	`pg' 	= 	1/`bins'								if `touse'
-  			gen 	double `delta' = .
-  			replace `delta' = (`inc'[_n]-`min')			/2 	in 1			if `touse'
-  			replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'		if `touse'
-  			replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'		if `touse'
-  			replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l						if `touse'
-  			gen double `inc2' = .											if `touse'
-  			replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
-  			replace `inc2' = `max' - `delta'				in `bins'		if `touse'
-  			sum `inc2'														if `touse'
-  			local sumL = r(sum)
-  			gen double 	`Lg' = `inc2'/`sumL'								if `touse'
-  			replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l						if `touse'
-  			`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
-  		}
-
-  		if (substr(trim("`wtg2'"),1,2) == "pw") {
-  			tempvar LLLLL PPPPP
-  			gen double 	`pg' 	= 	`exp2'									if `touse'
-  			gen 	double `delta' = .										if `touse'
-  			replace `delta' = (`inc'[_n]-`min')			/2 	in 1			if `touse'
-  			replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'		if `touse'
-  			replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'		if `touse'
-  			replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l						if `touse'
-  			gen double `inc2' = .											if `touse'
-  			replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
-  			replace `inc2' = `max' - `delta'				in `bins'		if `touse'
-  			gen double `PPPPP' = `exp2'*`inc2'*100000
-  			sum `PPPPP'
-  			local sumL = r(sum)
-  			gen double 	`LLLLL' = `PPPPP'/`sumL'
-  			replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] in 2/`bins'
-  			gen double `Lg' = `LLLLL'
-  			`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
-  		}
-
-  		if (substr(trim("`wtg2'"),1,2) == "fw") {
-        sum `exp2'														if `touse'
-  			local sumP = r(sum)
-  			gen double 	`pg' = `exp2'/`sumP'								if `touse'
-
-  			gen 	double `delta' = .										if `touse'
-  			replace `delta' = (`inc'[_n]-`min')			/2 	in 1			if `touse'
-  			replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'		if `touse'
-  			replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'		if `touse'
-  			replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l						if `touse'
-  			gen double `inc2' = .											if `touse'
-  			replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
-  			replace `inc2' = `max' - `delta'				in `bins'		if `touse'
-  			sum `inc2'		[`weight'`exp']									if `touse'
-  			local sumL = r(sum)
-  			gen double 	`Lg' = `inc2'/`sumL'								if `touse'
-  			replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l						if `touse'
-  			`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
-  		}
-  	}
-
-  ************************************
-  ** Generate the cumulative distribution
-  ************************************
-
-  	sum `pg'
-  	local s = r(sum)
-  	if (`s'>99) {
-  		gen double `p' = `pg'/100
-  	}
-  	else {
-  		gen double `p' = `pg'
-  	}
-
-  	sum `Lg'
-  	local s = r(sum)
-  	if (`s'>99) {
-  		gen double `L' = `Lg'/100
-  	}
-  	else {
-  		gen double `L' = `Lg'
-  	}
-
-  ************************************
-  ** Generate variables: GQ Lorenz Curve
-  ************************************
-
-    gen double `y1' = `L'*(1-`L')
-    gen double `a' = ((`p'^2)-`L')
-    gen double `b' = `L'*(`p'-1)
-    gen double `c' = (`p'-`L')
-
-  ************************************
-  ** Generate variables: Beta Lorenz Curve
-  ************************************
-
-    gen double `y2'=ln(`p'-`L')
-    gen double `x1'=ln(`p')
-    gen double `x2'=ln(1-`p')
-
-  ************************************
+	************************************
 	** Plot Figure
-  ************************************
+	************************************
 
-  	if ("`nofigures'" == "") {
-  		local mustr = strofreal(`mu',"%9.2f")
-  		local intercept00 = `bins' + 1
-  		replace `L' = 0 in `intercept00'
-  		replace `p' = 0 in `intercept00'
-      * figure 1 - Lorenz
-      graph twoway lowess `L' `p'		, 						///
-  			ytitle("Lorenz") xtitle("Population (Cumulative)") 				///
-  			note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
-        * figure 2 - PDF
-  		kdensity `inc' 					, 						///
-  			xline(`z') xtitle("`inc'") name(pdf, replace)
-        * figure 3 - Pen's parade
-  		graph twoway lowess `inc' `p'	, 						///
-  			yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
-  			note("mean: `mustr' [`bins' bins]") name("pen", replace)
-  	}
+			if ("`nofigures'" == "") {
+				local mustr = strofreal(`mu',"%9.2f")
+				local intercept00 = `bins'+1
+				replace `Lg' = 0 in `intercept00'
+				replace `pg' = 0 in `intercept00'
+		  * Figure 1 - Lorenz
+				graph twoway lowess `Lg' `pg', 										            ///
+					ytitle("Lorenz") xtitle("Population (Cumulative)") 		      ///
+					note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
+		  * Figure 2 - PDF
+				kdensity `A'6, 														                    ///
+					xline(`z') xtitle("`inc'") name(pdf, replace)
+		  * Figure 3 - Pen's Parade
+				graph twoway lowess `A'3 `pg', 										              ///
+					yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
+					note("mean: `mustr' [`bins' bins]") name("pen", replace)
+			}
 
-  	`noidebug' list `Lg' `L' `pg' `p'  `y1' `a' `b' `c'  `y2' `x1' `x2' if `y1' !=.
+	  ************************************
+	  ** Estimation: GQ Lorenz Curve (grouped data)
+	  ************************************
 
-************************************
-** Estimation: GQ Lorenz Curve (Group data provided)
-************************************
+		`noidebug' di as text "Group data constructed: GQ Lorenz Curve"
 
-    `noidebug' di as text "Group data provided: GQ Lorenz Curve"
+			label variable `yg'   "`inc'"
+			label variable `ag'		"A"
+			label variable `bg' 	"B"
+			label variable `cg' 	"C"
 
-  	label var `y1' 	 "`inc'"
-  	label var `a'  	 "A"
-  	label var `b' 	 "B"
-  	label var `c'	 "C"
+		qui reg `yg' `ag' `bg' `cg' in 1/`lastg', noconstant
+		est store coefgqg
+		mat `gqg' = e(b)
 
-    qui reg `y1' `a' `b' `c' in 1/`last' , noconstant
-    est store coefgq
-    mat `gq' = e(b)
-    mat `cof' = e(b)
+	  ************************************
+	  ** Estimation: Beta Lorenz Curve (Grouped data)
+	  ************************************
 
-************************************
-** Estimation: Beta Lorenz Curve (Group data provided)
-************************************
+		`noidebug' di as text "Group data constructed: Beta Lorenz Curve "
 
-    `noidebug' di as text "Group data provided: Beta Lorenz Curve"
+			label variable `yg2' 	"`inc'"
+			label variable `x1g'  "B"
+			label variable `x2g'	"C"
 
-  	label var `y2' 	"`inc'"
-  	label var `x1'	"B"
-  	label var `x2'	"C"
+		qui reg `yg2' `x1g' `x2g'  in 1/`lastg'
+		est store coefbetag
+		mat `cofbg' = e(b)
 
-    qui reg `y2' `x1' `x2' in 1/`last'
-    est store coefbeta
-    mat `cofb' = e(b)
-
-  }
-
-*-----------------------------------------------------------------------------
-* Unite Records is provided
-* Group data is estimated by Groupdata ado
-*-----------------------------------------------------------------------------
-
-  qui if ("`grouped'" == "grouped") {
-		noi di ""
-		noi di "Estimation using grouped data..."
-
-    ** cumulative distribution (grouped data)
-  	if (`bins'!= 0) {
-  		if (`bins' == -99) {
-        * if bins are not specified the default value is 20 bins
-  			local bins = 20
-  			noi di ""
-  			noi di "... creating groupped data with `bins' bins."
-  			noi di ""
-  			alorenz `inc' [`weight'`exp']	if `touse', points(`bins')
-  		}
-  		else {
-  			noi di ""
-  			noi di "... creating groupped data with `bins' bins."
-  			noi di ""
-  			alorenz `inc' [`weight'`exp']	if `touse', points(`bins')
-  		}
-  	}
-    * extract return matrix
-		mat `A' = r(lorenz1)
-    * export return matrix to dataset
-		svmat double `A'
-    * generate return matrix of dataset
-		return matrix data = `A'
-
-  ** generate variables (GQ Lorenz Curve) (grouped data)
-    gen double `Lg' = `A'2/100
-    gen double `pg' = `A'4/100
-    gen double `yg' = `Lg'*(1-`Lg')
-    gen double `ag' = ((`pg'^2)-`Lg')
-    gen double `bg' = `Lg'*(`pg'-1)
-    gen double `cg' = (`pg'-`Lg')
-
-    ** generate variables Beta Lorenz Curve (Grouped data)
-    gen double `yg2' = ln(`pg'-`Lg')
-    gen double `x1g' = ln(`pg')
-    gen double `x2g' = ln(1-`pg')
-    local lastg = `bins'-1
-
-************************************
-** Plot Figure
-************************************
-
-		if ("`nofigures'" == "") {
-			local mustr = strofreal(`mu',"%9.2f")
-			local intercept00 = `bins'+1
-			replace `Lg' = 0 in `intercept00'
-			replace `pg' = 0 in `intercept00'
-      * Figure 1 - Lorenz
-			graph twoway lowess `Lg' `pg', 										            ///
-				ytitle("Lorenz") xtitle("Population (Cumulative)") 		      ///
-				note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
-      * Figure 2 - PDF
-			kdensity `A'6, 														                    ///
-				xline(`z') xtitle("`inc'") name(pdf, replace)
-      * Figure 3 - Pen's Parade
-			graph twoway lowess `A'3 `pg', 										              ///
-				yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
-				note("mean: `mustr' [`bins' bins]") name("pen", replace)
-		}
-
-  ************************************
-  ** Estimation: GQ Lorenz Curve (grouped data)
-  ************************************
-
-    `noidebug' di as text "Group data constructed: GQ Lorenz Curve"
-
-		label variable `yg'   "`inc'"
-		label variable `ag'		"A"
-		label variable `bg' 	"B"
-		label variable `cg' 	"C"
-
-    qui reg `yg' `ag' `bg' `cg' in 1/`lastg', noconstant
-    est store coefgqg
-    mat `gqg' = e(b)
-
-  ************************************
-  ** Estimation: Beta Lorenz Curve (Grouped data)
-  ************************************
-
-    `noidebug' di as text "Group data constructed: Beta Lorenz Curve "
-
-		label variable `yg2' 	"`inc'"
-		label variable `x1g'  "B"
-		label variable `x2g'	"C"
-
-    qui reg `yg2' `x1g' `x2g'  in 1/`lastg'
-    est store coefbetag
-    mat `cofbg' = e(b)
-
-  }
+	  }
+	  
+	}
 
 *-----------------------------------------------------------------------------
 * Start the computation of welfare measures FGT0; FGT1; FGT2; Gini
@@ -856,40 +879,51 @@ quietly {
 
 			sum `lnmpce' [`weight2'`exp']		if `touse'
 			local lnmu = r(mean)
-			local lnsd = r(sd)
+			local sd   = r(sd)
+			local lnsd = ln(`sd')
 		  }
 		  if (`mu') != -99 {
 			* use the mean provided as an option
 			  sum `lnmpce' [`weight2'`exp']		if `touse'
 			local lnmu = ln(`mu')
-			local lnsd = r(sd)
+			local sd   = r(sd)
+			local lnsd = ln(`sd')
 		  }
 		}
 
 		* generate mean values for group data estimations
 		if ("`type'" != "") {
 		  * mean value is provided by the command as a parameters
-		  local lnmu = ln(`mu')
+		    local lnmu = ln(`mu')
+			local mu = `mu'
 			if (`sd' == -99) {
 				sum `lnmpce' [`weight2'`exp']	if `touse'
 				local lnmu = ln(`mu')
-				local lnsd = r(sd)
-	  *				local lnsd = ln(.5)
+				local sd   = r(sd)
+				local lnsd = ln(`sd')
+				*local lnsd = ln(.5)
 			}
-			else {
-					local lnsd = ln(`sd')
-			}
-		  * keep only group data
-			keep if `touse'
-
-		  * increase the number of rows to match what is required by
-		  * output matrix (32 rows)
-			local N = _N
-			if (`N' < 24) {
-				set obs 32
+			if (`sd' != -99)  {
+				local lnsd = ln(`sd')
 			}
 		}
+			
+		if (`skip' != 1) {
+			*keep only group data
+			keep if `touse'
+		}
 
+		 * increase the number of rows to match what is required by
+		 * output matrix (32 rows)
+		local N = _N
+		if (`N' < 24) {
+			set obs 32
+		}
+	
+	di "`mu'"
+	di "`lnmu'"
+	
+	
 	*-----------------------------------------------------------------------------
 	* 	Table 2 (Datt, 1998)
 	*-----------------------------------------------------------------------------
@@ -1189,7 +1223,7 @@ quietly {
 
 		  `noidebug' di as text "Store results"
 
-		  tempvar pline seq bin mean
+		  tempvar pline seq bin mean stdev 
 
 		  local Npline = wordcount("`zl'")
 
@@ -1205,6 +1239,7 @@ quietly {
 		  cap: gen `value'   = .
 		  cap: gen `bin'     = .
 		  cap: gen `mean'    = .
+		  cap: gen `stdev'   = .
 		  
 
 		  cap: replace `pline'   = ""
@@ -1215,10 +1250,12 @@ quietly {
 		  cap: replace `value'   = .
 		  cap: replace `bin'     = .
 		  cap: replace `mean'    = .
+		  cap: replace `stdev'    = .
 
 		  replace `pline' = "Poverty line: `z'"
 		  replace `seq'   = `z'
 		  replace `mean'   = `mu'
+		  replace `stdev'  = `sd'
 		  replace `var'   = _n in 1/32
 		  replace `bin'   = `bins'
 
@@ -1370,10 +1407,11 @@ quietly {
 	*-----------------------------------------------------------------------------
 	* Display Lorenz
 	*-----------------------------------------------------------------------------
-
+		
 		`noidebug' di as text "Display results"
 
-
+		if (`skip' != 1) {
+			
 			label var `pg' p
 			label var `Lg' Lorenz
 
@@ -1393,10 +1431,15 @@ quietly {
 
 			`noilor' di as text 	"{hline 50}"
 
+		}
+		
 	*-----------------------------------------------------------------------------
 	* Display Regression results
 	*-----------------------------------------------------------------------------
 
+	if (`skip' != 1) {
+		
+	
 		if ("`grouped'" == "grouped") {
 
 		`noireg' di ""
@@ -1432,6 +1475,7 @@ quietly {
 				  legend label  varlabels(_cons A)
 
 		}
+	}
 
 	*-----------------------------------------------------------------------------
 	* Display Poverty and Inequality Results
@@ -1549,9 +1593,9 @@ quietly {
 
 		tempname tmp`pl'
 
-			mkmat  `seq' `mean' `var' `model' `type2' `value' if `value' != . , matrix(`tmp`pl'')
+			mkmat  `seq' `mean' `stdev' `var' `model' `type2' `value' if `value' != . , matrix(`tmp`pl'')
 
-			matrix colnames `tmp`pl'' = povline mean indicator model type value
+			matrix colnames `tmp`pl'' = povline mean sd indicator model type value
 
 			mat check = `tmp`pl''
 
@@ -1587,25 +1631,25 @@ quietly {
 		return scalar elspgginib  = `elspgginib'
 
 		if ("`grouped'" != "") {
-			return scalar agq = `gqg'[1,1]
-			return scalar bgq = `gqg'[1,2]
-			return scalar cgq = `gqg'[1,3]
+			return scalar agq = `a'
+			return scalar bgq = `b'
+			return scalar cgq = `c'
 		}
 		if ("`grouped'" == "") {
-		  return scalar agq = `gq'[1,1]
-		  return scalar bgq = `gq'[1,2]
-		  return scalar cgq = `gq'[1,3]
+		  return scalar agq = `a'
+		  return scalar bgq = `b'
+		  return scalar cgq = `c'
 		}
 
 		if ("`grouped'" != "") {
-			 return scalar theta   =   `cofbg'[1,3]
-		   return scalar gama    =   `cofbg'[1,1]
-		   return scalar delta   =   `cofbg'[1,2]
+		   return scalar theta   =   `aatheta'
+		   return scalar gama    =   `aagama'
+		   return scalar delta   =   `aadelta'
 		}
 		if ("`grouped'" == "") {
-		   return scalar theta   =   `cofb'[1,3]
-		   return scalar gama    =   `cofb'[1,1]
-		   return scalar delta   =   `cofb'[1,2]
+		   return scalar theta   =   `aatheta'
+		   return scalar gama    =   `aagama'
+		   return scalar delta   =   `aadelta'
 		}
 
 		if ("`nochecks'" != "") {
