@@ -76,7 +76,7 @@ program define groupdata, rclass
 
 preserve
 
-  quietly {
+quietly {
 
 *-----------------------------------------------------------------------------
 * 	Temp names
@@ -271,10 +271,10 @@ preserve
 
 	* debug
 	if ("`debug'" == "") {
-		loc noidebug ""
+		loc noidebug 
 	}
 	else {
-		loc noidebug "noi"
+		loc noidebug noi:
 	}
 
 *-----------------------------------------------------------------------------
@@ -306,21 +306,42 @@ preserve
 	qui if ("`benchmark'" == "benchmark") {
     * create  counter
     local ppp = 0
-	
-    foreach z in `zl' {
-	
-		local pl "pl`ppp'"
-		* unit record poverty estimates
-		apoverty `inc' [`weight'`exp'] 	if `touse', line(`z')  fgt3  pgr
-		local `pl'afgt0 = r(head_1)
-		local `pl'afgt1 = r(pogapr_1)
-		local `pl'afgt2 = r(fogto3_1)
-		* unit record inequality estimates
-		ainequal `inc' [`weight'`exp']  if `touse'
-		local `pl'agini = r(gini_1)
-		* create row labels for output matrix
-		local rownames_unitrecord " fgt0 fgt1 fgt2 gini "
-		local ppp = `ppp' + 1
+	if ("`noidebug'"==""){
+		foreach z in `zl' {
+		
+			local pl "pl`ppp'"
+			* unit record poverty estimates
+			apoverty `inc' [`weight'`exp'] 	if `touse', line(`z')  fgt3  pgr
+			local `pl'afgt0 = r(head_1)
+			local `pl'afgt1 = r(pogapr_1)
+			local `pl'afgt2 = r(fogto3_1)
+			* unit record inequality estimates
+			ainequal `inc' [`weight'`exp']  if `touse'
+			local `pl'agini = r(gini_1)
+			* create row labels for output matrix
+			local rownames_unitrecord " fgt0 fgt1 fgt2 gini "
+			local ppp = `ppp' + 1
+			dis as error "AQUI"
+		}
+		dis as error "AQUI2"
+	}
+	else{
+		foreach z in `zl' {
+		
+			local pl "pl`ppp'"
+			* unit record poverty estimates
+			apoverty `inc' [`weight'`exp'] 	if `touse', line(`z')  fgt3  pgr
+			local `pl'afgt0 = r(head_1)
+			local `pl'afgt1 = r(pogapr_1)
+			local `pl'afgt2 = r(fogto3_1)
+			* unit record inequality estimates
+			ainequal `inc' [`weight'`exp']  if `touse'
+			local `pl'agini = r(gini_1)
+			* create row labels for output matrix
+			local rownames_unitrecord " fgt0 fgt1 fgt2 gini "
+			local ppp = `ppp' + 1
+			dis as error "AQUI"
+		}		
 	}
 	
 	}
