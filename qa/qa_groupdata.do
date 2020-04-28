@@ -83,6 +83,8 @@ graph twoway		///
 *-----------------------------------------------------------------------------
 * Learning Poverty Simulation (distributionally neutral) - generate group data
 
+do "${myados}\groupdata\src\groupdata.ado"
+
 use "$output\score2017", clear
 
 * check group data estiamtes from unit records 
@@ -100,6 +102,7 @@ alorenz score_lp [aw=learner_weight_lp] if idgrade == 5, fullview points(15)
 mat a = r(lorenz1) 
 svmat double a, names(col)
 						
+do "${myados}\groupdata\src\groupdata.ado"
 
 * mean  (Type 1: OK) accepts only AW
 groupdata ac_prop_score_lp 	[aw=ac_prop_pop] 	, z(200) mu(214.28) type(1) nofigure nochecks noelasticities

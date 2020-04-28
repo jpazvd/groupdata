@@ -71,10 +71,10 @@ program define groupdata, rclass
     				debug					  ///
           ]
 
+
 quietly {
 
   preserve
-
 *-----------------------------------------------------------------------------
 * 	Temp names
 *-----------------------------------------------------------------------------
@@ -290,11 +290,8 @@ quietly {
 *-----------------------------------------------------------------------------
 
 		tokenize `varlist'
-
 		local inc `1'
-
 		mark `touse' `if' `in' [`weight'`exp']
-
 		* remove missing values from estiamte
 		markout `touse'  `varlist'
 
@@ -303,7 +300,6 @@ quietly {
 *-----------------------------------------------------------------------------
 
 		set seed 1234568
-
     gen double `rnd' = uniform()		if `touse'
     gen `lninc' 	= ln(`inc') 			if `touse'
 		gen `lnmpce' 	= ln(`inc') 			if `touse'
@@ -313,60 +309,57 @@ quietly {
 * 	Mean values
 *-----------------------------------------------------------------------------
 
-	* generate mean values if unit record data is provided
-	if ("`type'" == "") {
-
+  	* generate mean values for unit record estimations
+  	if ("`type'" == "") {
 	    if (`mu' == -99) {
+        * generate mean and stadard deviation for unit record data
+  		  sum `inc' [`weight2'`exp']			if `touse'
+  		  local mu = `r(mean)'
 
-			* generate mean and stadard deviation for unit record data
-			sum `inc' [`weight2'`exp']			if `touse'
-			local mu = `r(mean)'
-
-            sum `lnmpce' [`weight2'`exp']		if `touse'
-            local lnmu = r(mean)
-            local lnsd = r(sd)
-        }
-
-        if (`mu') != -99 {
+        sum `lnmpce' [`weight2'`exp']		if `touse'
+        local lnmu = r(mean)
+        local lnsd = r(sd)
+      }
+      if (`mu') != -99 {
 			* use the mean provided as an option
-			sum `lnmpce' [`weight2'`exp']		if `touse'
-            local lnmu = ln(`mu')
-            local lnsd = r(sd)
-        }
-	}
+			  sum `lnmpce' [`weight2'`exp']		if `touse'
+        local lnmu = ln(`mu')
+        local lnsd = r(sd)
+      }
+  	}
 
-
-	if ("`type'" != "") {
-
-			local lnmu = ln(`mu')
-
+    * generate mean values for group data estimations
+  	if ("`type'" != "") {
+      * mean value is provided by the command as a parameters
+      local lnmu = ln(`mu')
 			if (`sd' == -99) {
 				sum `lnmpce' [`weight2'`exp']	if `touse'
 				local lnmu = ln(`mu')
 				local lnsd = r(sd)
 *				local lnsd = ln(.5)
 			}
-
 			else {
-				local lnsd = ln(`sd')
+  				local lnsd = ln(`sd')
 			}
-
+      * keep only group data
 			keep if `touse'
 
+      * increase the number of rows to match what is required by
+      * output matrix (32 rows)
 			local N = _N
-
 			if (`N' < 24) {
-				set obs 24
+				set obs 32
 			}
-	}
+  	}
 
 
 *-----------------------------------------------------------------------------
-* 	Unit Record
+* 	Unit Record estimations used to benchmark results
 *-----------------------------------------------------------------------------
 
 		if ("`benchmark'" == "benchmark") {
 
+      * create  counter
       local ppp = 0
 
       `noidebug' foreach z in `zl' {
@@ -388,111 +381,109 @@ quietly {
         local ppp = `ppp' + 1
 
       }
-		}
 
+		}
 
 *-----------------------------------------------------------------------------
 * 	Unit Record
 *-----------------------------------------------------------------------------
 
+    if ("`unitrecord'" == "unitrecord") {
 
-        qui if ("`unitrecord'" == "unitrecord") {
+  			noi di ""
+  			noi di ""
+  			noi di "Estimation using unit record information."
 
-			noi di ""
-			noi di ""
-			noi di "Estimation using unit record information."
+        ************************************
+        ** cumulative distribution
+        ************************************
 
+        egen double `pw' = pc(`inc')			if `touse', prop
+        egen double `pp' = pc(`pop')			if `touse', prop
 
-            ************************************
-            ** cumulative distribution
-            ************************************
+        gen double 	`L' = `pw'					if `touse'
+        replace 	`L' = `pw'+`L'[_n-1] in 2/l	if `touse'
 
-            egen double `pw' = pc(`inc')			if `touse', prop
-            egen double `pp' = pc(`pop')			if `touse', prop
+        gen double 	`p' = `pp'					if `touse'
+        replace 	`p' = `pp'+`p'[_n-1] in 2/l	if `touse'
 
-            gen double 	`L' = `pw'					if `touse'
-            replace 	`L' = `pw'+`L'[_n-1] in 2/l	if `touse'
+        ************************************
+        ** generate variables (GQ Lorenz Curve)
+        ************************************
 
-            gen double 	`p' = `pp'					if `touse'
-            replace 	`p' = `pp'+`p'[_n-1] in 2/l	if `touse'
+        gen double `y1' = `L'*(1-`L')			if `touse'
+        gen double `a' 	= ((`p'^2)-`L')			if `touse'
+        gen double `b' 	= `L'*(`p'-1)			if `touse'
+        gen double `c' 	= (`p'-`L')				if `touse'
 
-            ************************************
-            ** generate variables (GQ Lorenz Curve)
-            ************************************
+        ************************************
+        ** generate variables Beta Lorenz Curve
+        ************************************
 
-            gen double `y1' = `L'*(1-`L')			if `touse'
-            gen double `a' 	= ((`p'^2)-`L')			if `touse'
-            gen double `b' 	= `L'*(`p'-1)			if `touse'
-            gen double `c' 	= (`p'-`L')				if `touse'
+        gen double `y2'	=	ln(`p'-`L')			if `touse'
+        gen double `x1'	=	ln(`p')				if `touse'
+        gen double `x2'	=	ln(1-`p')			if `touse'
 
-            ************************************
-            ** generate variables Beta Lorenz Curve
-            ************************************
+        local last = _N-1
 
-            gen double `y2'	=	ln(`p'-`L')			if `touse'
-            gen double `x1'	=	ln(`p')				if `touse'
-            gen double `x2'	=	ln(1-`p')			if `touse'
-
-            local last = _N-1
-
-            ************************************
+      ************************************
 			** Plot Figure
-            ************************************
+      ************************************
 
-			if ("`nofigures'" == "") {
+  			if ("`nofigures'" == "") {
 
-				local mustr = strofreal(`mu',"%9.2f")
-				local intercept00 = _N + 1
-				replace `L' = 0 in `intercept00'
-				replace `p' = 0 in `intercept00'
+  				local mustr = strofreal(`mu',"%9.2f")
+  				local intercept00 = _N + 1
+  				replace `L' = 0 in `intercept00'
+  				replace `p' = 0 in `intercept00'
 
-				graph twoway lowess `L' `p'		if `touse', 						///
-					ytitle("Lorenz") xtitle("Population (Cumulative)") 				///
-					note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
+  				graph twoway lowess `L' `p'		if `touse', 						///
+  					ytitle("Lorenz") xtitle("Population (Cumulative)") 				///
+  					note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
 
-				kdensity `inc' 					if `touse', 						///
-					xline(`z') xtitle("`inc'") name(pdf, replace)
+  				kdensity `inc' 					if `touse', 						///
+  					xline(`z') xtitle("`inc'") name(pdf, replace)
 
-				graph twoway lowess `inc' `p'	if `touse', 						///
-					yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
-					note("mean: `mustr' [`bins' bins]") name("pen", replace)
+  				graph twoway lowess `inc' `p'	if `touse', 						///
+  					yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
+  					note("mean: `mustr' [`bins' bins]") name("pen", replace)
 
-			}
+  			}
 
-            ************************************
-            ** Estimation: GQ Lorenz Curve
-            ************************************
+        ************************************
+        ** Estimation: GQ Lorenz Curve
+        ************************************
 
-			label var `y1' 	"`inc'"
-			label var `a'  	"A"
-			label var `b' 	"B"
-			label var `c'	"C"
+  			label var `y1' 	"`inc'"
+  			label var `a'  	"A"
+  			label var `b' 	"B"
+  			label var `c'	"C"
 
-            qui reg `y1' `a' `b' `c' in 1/`last' if `touse', noconstant
-            est store coefgq
-            mat `gq' = e(b)
-            mat `cof' = e(b)
+        qui reg `y1' `a' `b' `c' in 1/`last' if `touse', noconstant
+        est store coefgq
+        mat `gq' = e(b)
+        mat `cof' = e(b)
 
-            ************************************
-            ** Estimation: Beta Lorenz Curve
-            ************************************
+        ************************************
+        ** Estimation: Beta Lorenz Curve
+        ************************************
 
-			label var `y2' 	"`inc'"
-			label var `x1'	"B"
-			label var `x2'	"C"
+  			label var `y2' 	"`inc'"
+  			label var `x1'	"B"
+  			label var `x2'	"C"
 
-            qui reg `y2' `x1' `x2' in 1/`last' if `touse'
-            est store coefbeta
-            mat `cofb' = e(b)
+        qui reg `y2' `x1' `x2' in 1/`last' if `touse'
+        est store coefbeta
+        mat `cofb' = e(b)
 
-        }
+    }
 
 *-----------------------------------------------------------------------------
 * 	Group data (provided)
 *-----------------------------------------------------------------------------
 
 
-        qui if ("`type'" != "") {
+    qui if ("`type'" != "") {
 
 			noi di ""
 			noi di ""
@@ -514,9 +505,10 @@ quietly {
 				noi di "Type 6 grouped data: W=Percentage of the population in a given interval of incomes, X=The max income of that interval"
 			}
 
-			************************************
-            ** Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative proportion of income held by that proportion of the population
-            ************************************
+
+	************************************
+  ** Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative proportion of income held by that proportion of the population
+  ************************************
 
 			if ("`type'" == "1") {
 
@@ -533,12 +525,9 @@ quietly {
 				}
 			}
 
-			* noi list `pg' mean_score_lp `inc' `delta' `inc2' `Lg' in 1/`bins'
-
-
-			************************************
-            ** Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype
-            ************************************
+	************************************
+  ** Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype
+  ************************************
 
 			if ("`type'" == "2") {
 
@@ -557,11 +546,9 @@ quietly {
 				}
 			}
 
-			* noi list `pg' mean_score_lp `inc' `delta' `inc2' `Lg' in 1/`bins'
-
-            ************************************
-            ** Type 5 grouped data: W=Percentage of the population in a given interval of incomes, X=The mean income of that interval
-            ************************************
+  ************************************
+  ** Type 5 grouped data: W=Percentage of the population in a given interval of incomes, X=The mean income of that interval
+  ************************************
 
 			if ("`type'" == "5") {
 
@@ -625,9 +612,9 @@ quietly {
 
 			}
 
-            ************************************
-            ** Type 6 grouped data: W=Percentage of the population in a given interval of incomes, X=The max income of that interval
-            ************************************
+  ************************************
+  ** Type 6 grouped data: W=Percentage of the population in a given interval of incomes, X=The max income of that interval
+  ************************************
 
 			tempvar inc2 delta
 
@@ -724,18 +711,18 @@ quietly {
 
 			}
 
-            ************************************
-            ** cumulative distribution
-            ************************************
+  ************************************
+  ** cumulative distribution
+  ************************************
 /*
-            egen double `pw' = pc(`inc')			if `touse', prop
-            egen double `pp' = pc(`pop')			if `touse', prop
+  egen double `pw' = pc(`inc')			if `touse', prop
+  egen double `pp' = pc(`pop')			if `touse', prop
 
-            gen double `L' = `pw'					if `touse'
-            replace `L' = `pw'+`L'[_n-1] in 2/l		if `touse'
+  gen double `L' = `pw'					if `touse'
+  replace `L' = `pw'+`L'[_n-1] in 2/l		if `touse'
 
-            gen double `p' = `pp'					if `touse'
-            replace `p' = `pp'+`p'[_n-1] in 2/l		if `touse'
+  gen  double `p' = `pp'					if `touse'
+  replace `p' = `pp'+`p'[_n-1] in 2/l		if `touse'
 */
 
 			sum `pg'
@@ -756,27 +743,26 @@ quietly {
 				gen double `L' = `Lg'
 			}
 
+  ************************************
+  ** generate variables (GQ Lorenz Curve)
+  ************************************
 
-            ************************************
-            ** generate variables (GQ Lorenz Curve)
-            ************************************
+      gen double `y1' = `L'*(1-`L')
+      gen double `a' = ((`p'^2)-`L')
+      gen double `b' = `L'*(`p'-1)
+      gen double `c' = (`p'-`L')
 
-            gen double `y1' = `L'*(1-`L')
-            gen double `a' = ((`p'^2)-`L')
-            gen double `b' = `L'*(`p'-1)
-            gen double `c' = (`p'-`L')
+  ************************************
+  ** generate variables Beta Lorenz Curve
+  ************************************
 
-            ************************************
-            ** generate variables Beta Lorenz Curve
-            ************************************
+      gen double `y2'=ln(`p'-`L')
+      gen double `x1'=ln(`p')
+      gen double `x2'=ln(1-`p')
 
-            gen double `y2'=ln(`p'-`L')
-            gen double `x1'=ln(`p')
-            gen double `x2'=ln(1-`p')
-
-            ************************************
-			** Plot Figure
-            ************************************
+  ************************************
+	** Plot Figure
+  ************************************
 
 			if ("`nofigures'" == "") {
 
@@ -798,42 +784,41 @@ quietly {
 
 			}
 
-
 			`noidebug' list `Lg' `L' `pg' `p'  `y1' `a' `b' `c'  `y2' `x1' `x2' if `y1' !=.
 
-            ************************************
-            ** Estimation: GQ Lorenz Curve
-            ************************************
+  ************************************
+  ** Estimation: GQ Lorenz Curve
+  ************************************
 
 			label var `y1' 	 "`inc'"
 			label var `a'  	 "A"
 			label var `b' 	 "B"
 			label var `c'	   "C"
 
-            qui reg `y1' `a' `b' `c' in 1/`last' , noconstant
-            est store coefgq
-            mat `gq' = e(b)
-            mat `cof' = e(b)
+      qui reg `y1' `a' `b' `c' in 1/`last' , noconstant
+      est store coefgq
+      mat `gq' = e(b)
+      mat `cof' = e(b)
 
-            ************************************
-            ** Estimation: Beta Lorenz Curve
-            ************************************
+  ************************************
+  ** Estimation: Beta Lorenz Curve
+  ************************************
 
 			label var `y2' 	"`inc'"
 			label var `x1'	"B"
 			label var `x2'	"C"
 
-            qui reg `y2' `x1' `x2' in 1/`last'
-            est store coefbeta
-            mat `cofb' = e(b)
+      qui reg `y2' `x1' `x2' in 1/`last'
+      est store coefbeta
+      mat `cofb' = e(b)
 
-        }
+    }
 
 *-----------------------------------------------------------------------------
 * 	Group data (estimated)
 *-----------------------------------------------------------------------------
 
-      qui if ("`grouped'" == "grouped") {
+    qui if ("`grouped'" == "grouped") {
 
 			noi di ""
 			noi di "Estimation using grouped data..."
@@ -863,27 +848,27 @@ quietly {
 
 			return matrix data = `A'
 
-            ** generate variables (GQ Lorenz Curve) (grouped data)
+  ** generate variables (GQ Lorenz Curve) (grouped data)
 
-            gen double `Lg' = `A'2/100
-            gen double `pg' = `A'4/100
+      gen double `Lg' = `A'2/100
+      gen double `pg' = `A'4/100
 
-            gen double `yg' = `Lg'*(1-`Lg')
-            gen double `ag' = ((`pg'^2)-`Lg')
-            gen double `bg' = `Lg'*(`pg'-1)
-            gen double `cg' = (`pg'-`Lg')
+      gen double `yg' = `Lg'*(1-`Lg')
+      gen double `ag' = ((`pg'^2)-`Lg')
+      gen double `bg' = `Lg'*(`pg'-1)
+      gen double `cg' = (`pg'-`Lg')
 
-            ** generate variables Beta Lorenz Curve (Grouped data)
+  ** generate variables Beta Lorenz Curve (Grouped data)
 
-            gen double `yg2' = ln(`pg'-`Lg')
-            gen double `x1g' = ln(`pg')
-            gen double `x2g' = ln(1-`pg')
+      gen double `yg2' = ln(`pg'-`Lg')
+      gen double `x1g' = ln(`pg')
+      gen double `x2g' = ln(1-`pg')
 
-            local lastg = `bins'-1
+      local lastg = `bins'-1
 
-            ************************************
-			** Plot Figure
-            ************************************
+  ************************************
+  ** Plot Figure
+  ************************************
 
 			if ("`nofigures'" == "") {
 
@@ -905,32 +890,34 @@ quietly {
 
 			}
 
-            ************************************
-            ** Estimation: GQ Lorenz Curve (grouped data)
-            ************************************
+  ************************************
+  ** Estimation: GQ Lorenz Curve (grouped data)
+  ************************************
 
 			label variable `yg'   "`inc'"
 			label variable `ag'		"A"
 			label variable `bg' 	"B"
 			label variable `cg' 	"C"
 
-            qui reg `yg' `ag' `bg' `cg' in 1/`lastg', noconstant
-            est store coefgqg
-            mat `gqg' = e(b)
+      qui reg `yg' `ag' `bg' `cg' in 1/`lastg', noconstant
+      est store coefgqg
+      mat `gqg' = e(b)
 
-            ************************************
-            ** Estimation: Beta Lorenz Curve (Grouped data)
-            ************************************
+  ************************************
+  ** Estimation: Beta Lorenz Curve (Grouped data)
+  ************************************
 
 			label variable `yg2' 	"`inc'"
 			label variable `x1g'  "B"
 			label variable `x2g'	"C"
 
-            qui reg `yg2' `x1g' `x2g'  in 1/`lastg'
-            est store coefbetag
-            mat `cofbg' = e(b)
+      qui reg `yg2' `x1g' `x2g'  in 1/`lastg'
+      est store coefbetag
+      mat `cofbg' = e(b)
 
-        }
+    }
+
+  }
 
         /**************************************
         ** Test
@@ -970,12 +957,71 @@ quietly {
         restore
 */
 
+*-----------------------------------------------------------------------------
+* Choice of the Lorenz curve
+*-----------------------------------------------------------------------------
+/*
+        ******test stat for GQ Lorenz******
 
-  local ppp = 0
+        estimates restore gqg
+        predict lhatg if _est_gqg==1
+        gen Lhatg=lhatg
+        drop lhatg
+        if _est_gqg==1 {
+            local k_t=(pg<`H')
+        }
+        else {
+        local k_t=.
+        }
+        if `k_t'==1{
+        local testGQ=(`Lhatg'-yg)^2
+        }
+        else {
+        local testGQ=.
+        }
+        sum `testGQ'
+        local GQ_TT=r(sum)
 
-  foreach z in `zl' {
+        *******test stat for Beta Lorenz**************
+        estimates restore gqg
+        predict lhatgBeta if  _est_blcg==1
+        local LhatgBeta=lhatg
+        drop lhatgBeta
+         if  _est_blcg==1 {
+        local k_tBeta=(pg<`hcrb')
+        }
+        else {
+        local k_tBeta=.
+        }
+        if `k_tBeta'==1 {
+        local testBeta=(`LhatgBeta'-yg)^2
+        }
+        else {
+        local testBeta=.
+        }
 
-    local pl "pl`ppp'"
+        sum `testBeta'
+        local Beta_TT=r(sum)
+
+        local test=(`GQ_TT'<`Beta_TT')
+
+        if `test==1{
+            noi di as res "GQ has a lower statistic"
+        }
+        else {
+            noi di as res "Beta has a lower statistic"
+        }
+*/
+
+
+
+
+
+    local ppp = 0
+
+    foreach z in `zl' {
+
+      local pl "pl`ppp'"
 
 *-----------------------------------------------------------------------------
 * 	Table 2 (Datt, 1998)
@@ -1064,14 +1110,6 @@ quietly {
         local elspgmu       = 2*(1-`PG'/`SPG')
         local elspggini     = 2*(1+((`mu'/`z')-1)*(`PG'/`SPG'))
 
-
-        local `pl'H       `H'
-        local `pl'PG      `PG'
-        local `pl'SPG     `SPG'
-        local `pl'gini_ln `gini_ln'
-
-
-
 *-----------------------------------------------------------------------------
 * 		Beta Lorenz Curve
 *-----------------------------------------------------------------------------
@@ -1091,153 +1129,172 @@ quietly {
             local aadelta2  =   2*`aadelta'
         }
 
-
         /*** Poverty */
 
-        		local Xx=.00001*(1-`z'/`mu')
-        		local hcrb0 = .01
-        		local j = 1
-        		local ff=`aatheta'*`hcrb0'^`aagama'*(1-`hcrb0')^`aadelta'*((`aagama'/`hcrb0')-(`aadelta'/(1-`hcrb0')))-1+`z'/`mu'
-        		while ( `Xx' <`ff' | `ff' < -`Xx') & `j'<51 {
-        			local i=1
-        			local hcrb1 = 0
-        			local hcrb2 = `hcrb0'
-        			local ff1=`aatheta'*`hcrb2'^`aagama'*(1-`hcrb2')^`aadelta'*((`aagama'/`hcrb2')-(`aadelta'/(1-`hcrb2')))-1+`z'/`mu'
+    		local Xx=.00001*(1-`z'/`mu')
+    		local hcrb0 = .01
+    		local j = 1
+    		local ff=`aatheta'*`hcrb0'^`aagama'*(1-`hcrb0')^`aadelta'*((`aagama'/`hcrb0')-(`aadelta'/(1-`hcrb0')))-1+`z'/`mu'
+    		while ( `Xx' <`ff' | `ff' < -`Xx') & `j'<51 {
+    			local i=1
+    			local hcrb1 = 0
+    			local hcrb2 = `hcrb0'
+    			local ff1=`aatheta'*`hcrb2'^`aagama'*(1-`hcrb2')^`aadelta'*((`aagama'/`hcrb2')-(`aadelta'/(1-`hcrb2')))-1+`z'/`mu'
 
-        			while `hcrb2'-`hcrb1'>.0001 & `i'<500{
-        				local ff2=`aatheta'*`hcrb2'^`aagama'*(1-`hcrb2')^`aadelta'*(`aagama'*(`aagama'-1)/*
-        				*//`hcrb2'^2-2*`aagama'*`aadelta'/(`hcrb2'*(1-`hcrb2'))+`aadelta'*(`aadelta'-1)/(1-`hcrb2')^2)
-        				local hcrb1=`hcrb2'
-        				local hcrb2 = `hcrb2' - (`ff1'/`ff2')
-        				local ff1=`aatheta'*`hcrb2'^`aagama'*(1-`hcrb2')^`aadelta'*((`aagama'/`hcrb2')-(`aadelta'/(1-`hcrb2')))-1+`z'/`mu'
-        				local i =`i'+1
-        			}
-        			local ff = `ff1'
-        			local hcrb0 = `hcrb0' + .01
-        			local j = `j'+1
-        		}
-        		local ff =`ff'
-        		local hcrb = `hcrb2'
-        		if abs(`ff')> `Xx'{
-        			local hcrb4=.0001
-        			local hcrb3 = .0001
-        			local j=1
-        			local fff=`aatheta'*`hcrb3'^`aagama'*(1-`hcrb3')^`aadelta'*((`aagama'/`hcrb3')-(`aadelta'/(1-`hcrb3')))-1+`z'/`mu'
-        			while abs(`fff')>`Xx' & `j'<10000{
-        				local hcrb3 = `hcrb3'+.0001
-        				local j = `j'+ 1
-        				local fff1=`aatheta'*`hcrb3'^`aagama'*(1-`hcrb3')^`aadelta'*((`aagama'/`hcrb3')-(`aadelta'/(1-`hcrb3')))-1+`z'/`mu'
-        				if abs(`fff1')>abs(`fff'){
-        					local fff = `fff'
-        				}
-        			else{
-        				local fff =`fff1'
-        				local hcrb4=`hcrb3'
-        			}
-        		}
-        		local hcrb=`hcrb4'
-        		local ff =`ff1'
-        	}
+    			while `hcrb2'-`hcrb1'>.0001 & `i'<500{
+    				local ff2=`aatheta'*`hcrb2'^`aagama'*(1-`hcrb2')^`aadelta'*(`aagama'*(`aagama'-1)/*
+    				*//`hcrb2'^2-2*`aagama'*`aadelta'/(`hcrb2'*(1-`hcrb2'))+`aadelta'*(`aadelta'-1)/(1-`hcrb2')^2)
+    				local hcrb1=`hcrb2'
+    				local hcrb2 = `hcrb2' - (`ff1'/`ff2')
+    				local ff1=`aatheta'*`hcrb2'^`aagama'*(1-`hcrb2')^`aadelta'*((`aagama'/`hcrb2')-(`aadelta'/(1-`hcrb2')))-1+`z'/`mu'
+    				local i =`i'+1
+    			}
+    			local ff = `ff1'
+    			local hcrb0 = `hcrb0' + .01
+    			local j = `j'+1
+    		}
+    		local ff =`ff'
+    		local hcrb = `hcrb2'
+    		if abs(`ff')> `Xx'{
+    			local hcrb4=.0001
+    			local hcrb3 = .0001
+    			local j=1
+    			local fff=`aatheta'*`hcrb3'^`aagama'*(1-`hcrb3')^`aadelta'*((`aagama'/`hcrb3')-(`aadelta'/(1-`hcrb3')))-1+`z'/`mu'
+    			while abs(`fff')>`Xx' & `j'<10000{
+    				local hcrb3 = `hcrb3'+.0001
+    				local j = `j'+ 1
+    				local fff1=`aatheta'*`hcrb3'^`aagama'*(1-`hcrb3')^`aadelta'*((`aagama'/`hcrb3')-(`aadelta'/(1-`hcrb3')))-1+`z'/`mu'
+    				if abs(`fff1')>abs(`fff'){
+    					local fff = `fff'
+    				}
+    			else{
+    				local fff =`fff1'
+    				local hcrb4=`hcrb3'
+    			}
+    		}
+    		local hcrb=`hcrb4'
+    		local ff =`ff1'
+    	}
 
-        	local LhBeta= `hcrb' - `aatheta'* `hcrb'^`aagama'*(1- `hcrb')^`aadelta'
-        	local muDiz = `mu'/`z'
+    	local LhBeta= `hcrb' - `aatheta'* `hcrb'^`aagama'*(1- `hcrb')^`aadelta'
+    	local muDiz = `mu'/`z'
 
-            /*** Poverty Gap (Beta Lorenz) */
-        	local PgBeta = `hcrb' - `muDiz'*`LhBeta'
+        /*** Poverty Gap (Beta Lorenz) */
+    	local PgBeta = `hcrb' - `muDiz'*`LhBeta'
 
-            /*** Poverty Gap Saqured (Beta Lorenz) */
-        	local ibita1 = (ibeta(`aagama2'-1,`aadelta2'+1,`hcrb'))*exp(lngamma(`aagama2'-1))*exp(lngamma(`aadelta2'/*
-        	*/+1))/exp(lngamma(`aagama2'+`aadelta2'))
-        	local ibita2 = (ibeta(`aagama2',`aadelta2',`hcrb'))*exp(lngamma(`aagama2'))*exp(lngamma(`aadelta2'/*
-        	*/))/exp(lngamma(`aagama2'+`aadelta2'))
-        	local ibita3 = (ibeta(`aagama2'+1,`aadelta2'-1,`hcrb'))*exp(lngamma(`aagama2'+1))*exp(lngamma(`aadelta2'/*
-        	*/-1))/exp(lngamma(`aagama2'+`aadelta2'))
+        /*** Poverty Gap Saqured (Beta Lorenz) */
+    	local ibita1 = (ibeta(`aagama2'-1,`aadelta2'+1,`hcrb'))*exp(lngamma(`aagama2'-1))*exp(lngamma(`aadelta2'/*
+    	*/+1))/exp(lngamma(`aagama2'+`aadelta2'))
+    	local ibita2 = (ibeta(`aagama2',`aadelta2',`hcrb'))*exp(lngamma(`aagama2'))*exp(lngamma(`aadelta2'/*
+    	*/))/exp(lngamma(`aagama2'+`aadelta2'))
+    	local ibita3 = (ibeta(`aagama2'+1,`aadelta2'-1,`hcrb'))*exp(lngamma(`aagama2'+1))*exp(lngamma(`aadelta2'/*
+    	*/-1))/exp(lngamma(`aagama2'+`aadelta2'))
 
-        	local FgtBeta = (1-`muDiz')*(2*`PgBeta'-(1-`muDiz')*`hcrb')+ `aatheta'*`aatheta'*`muDiz'*`muDiz'*((`aagama'*`aagama'*`ibita1')-/*
-        	*/2*`aagama'*`aadelta'*`ibita2' + `aadelta'*`aadelta'*`ibita3')
+    	local FgtBeta = (1-`muDiz')*(2*`PgBeta'-(1-`muDiz')*`hcrb')+ `aatheta'*`aatheta'*`muDiz'*`muDiz'*((`aagama'*`aagama'*`ibita1')-/*
+    	*/2*`aagama'*`aadelta'*`ibita2' + `aadelta'*`aadelta'*`ibita3')
 
-            /*** Gini (Beta Lorenz) */
-        	local GiniBeta = 2*`aatheta'*exp(lngamma(1+`aagama'))*exp(lngamma(1+`aadelta'))/exp(lngamma/*
-        	*/(2+`aagama'+`aadelta'))
+        /*** Gini (Beta Lorenz) */
+    	local GiniBeta = 2*`aatheta'*exp(lngamma(1+`aagama'))*exp(lngamma(1+`aadelta'))/exp(lngamma/*
+    	*/(2+`aagama'+`aadelta'))
 
-        	local ldpBeta = `aatheta'*`hcrb'^`aagama'*(1-`hcrb')^`aadelta'*((`aagama'*(1-`aagama')/`hcrb'*`hcrb')+(2*`aagama'*`aadelta'/*
-        	*//(`hcrb'*(1-`hcrb')))+(`aadelta'*(1-`aadelta')/((1-`hcrb')*(1-`hcrb'))))
+    	local ldpBeta = `aatheta'*`hcrb'^`aagama'*(1-`hcrb')^`aadelta'*((`aagama'*(1-`aagama')/`hcrb'*`hcrb')+(2*`aagama'*`aadelta'/*
+    	*//(`hcrb'*(1-`hcrb')))+(`aadelta'*(1-`aadelta')/((1-`hcrb')*(1-`hcrb'))))
 
-            /*** Elasticities (Beta Lorenz) */
-        	local elhmub       = -(`z'/(`mu'*`hcrb'*`ldpBeta'))
-        	local elhginib     = (1-(`z'/`mu'))/ (`hcrb'*`ldpBeta')
-        	local elpgmub      = 1-(`hcrb'/`PgBeta')
-        	local elpgginib    = 1+(((`mu'/`z')-1)* (`hcrb'/`PgBeta'))
-        	local elspgmub     = 2*(1-`PgBeta'/`FgtBeta')
-        	local elspgginib   = 2*(1+((`mu'/`z')-1)*(`PgBeta'/`FgtBeta'))
+        /*** Elasticities (Beta Lorenz) */
+    	local elhmub       = -(`z'/(`mu'*`hcrb'*`ldpBeta'))
+    	local elhginib     = (1-(`z'/`mu'))/ (`hcrb'*`ldpBeta')
+    	local elpgmub      = 1-(`hcrb'/`PgBeta')
+    	local elpgginib    = 1+(((`mu'/`z')-1)* (`hcrb'/`PgBeta'))
+    	local elspgmub     = 2*(1-`PgBeta'/`FgtBeta')
+    	local elspgginib   = 2*(1+((`mu'/`z')-1)*(`PgBeta'/`FgtBeta'))
 
-          if (`ibita3' == . ) {
-            local FgtBeta     = -.99
-            local elspgmub    = -99
-            local elspgginib  = -99
-            noi dis "WARNING: ibita3 in the Beta Loren Specification can not be computed"
-          }
-
-          local `pl'hcrb      `hcrb'
-          local `pl'PgBeta    `PgBeta'
-          local `pl'FgtBeta   `FgtBeta'
-          local `pl'GiniBeta  `GiniBeta'
+      if (`ibita3' == . ) {
+        local FgtBeta     = -.99
+        local elspgmub    = -99
+        local elspgginib  = -99
+        noi dis "WARNING: ibita3 in the Beta Loren Specification can not be computed"
+      }
 
 *-----------------------------------------------------------------------------
-* Choice of the Lorenz curve
+* Checking for consistency of GQ Lorenz Curve  estimation
 *-----------------------------------------------------------------------------
-/*
-        ******test stat for GQ Lorenz******
 
-        estimates restore gqg
-        predict lhatg if _est_gqg==1
-        gen Lhatg=lhatg
-        drop lhatg
-        if _est_gqg==1 {
-            local k_t=(pg<`H')
+      /** Condition 1 : L(0;pi)=0*/
+      if (`e' < 0) {
+          local ccheck1 = 1
+      }
+      else {
+          local ccheck1 = 0
+      }
+
+      /** Condition 2 : L(1;pi)=1*/
+      local t = (`a'+`c')
+      if (`t' >= 1) {
+          local ccheck2 = 1
+      }
+      else {
+          local ccheck2 = 0
+      }
+
+      /** Condition 3 : L'(0+;pi)>=0*/
+      if (`c' >= 0) {
+          local ccheck3 = 1
+      }
+      else {
+          local ccheck3 = 0
+      }
+
+      /** Condition 4 : L''(p;pi)>=0 for p within (0,1)*/
+      if ( `m' < 0 | (( 0 < `m' <(`n'^2/(4*`e'^2)))	& `n' >= 0) | ((0 < `m' < (-`n'/2)) & (`m' < (`n'^2 /(4*`e'^2))))) {
+          local ccheck4 = 1
+      }
+      else {
+          local ccheck4 = 0
+      }
+
+    *-----------------------------------------------------------------------------
+    * Checking for consistency of Beta lorenz curve estimation
+    *-----------------------------------------------------------------------------
+
+    /** Condition 1 : L(0;pi)=0 */
+    * automatically satisfied by the functional form
+    * `nocheck' di as text "L(0;pi)=0: " as res "OK (automatically satisfied by the functional form)"
+
+    /** Condition 2 : L(1;pi)=1 */
+    * automatically satisfied by the functional form
+    *`nocheck' di as text "L(1;pi)=1: " as res "OK (automatically satisfied by the functional form)"
+
+    /** Condition 3 : "L'(0+;pi)>=0 */
+      * We check the validity of the Beta Lorenz curve
+      local check1 = 1- `aatheta'*.001^`aagama'*.999^`aadelta'*(`aagama'/.001-`aadelta'/.999)
+      if (`check1'>=0)  {
+        local bcheck3 = 1
+      }
+      else {
+        local bcheck3 = 0
+      }
+    /** Condition 4 : L''(p;pi)>=0 for p within (0,1)*/
+
+      local check2 = 0
+      local i=.01
+      while `i'<1 {
+        local chk = `aatheta'*`i'^`aagama'*(1-`i')^`aadelta'*((`aagama'*(1-`aagama')/`i'^2)+(2*`aagama'*`aadelta'/*
+        *//(`i'*(1-`i')))+(`aadelta'*(1-`aadelta')/(1-`i')^2))
+        if `chk'<0 {
+          local check2=1
         }
         else {
-        local k_t=.
         }
-        if `k_t'==1{
-        local testGQ=(`Lhatg'-yg)^2
-        }
-        else {
-        local testGQ=.
-        }
-        sum `testGQ'
-        local GQ_TT=r(sum)
+        local i=`i'+.01
+      }
 
-        *******test stat for Beta Lorenz**************
-        estimates restore gqg
-        predict lhatgBeta if  _est_blcg==1
-        local LhatgBeta=lhatg
-        drop lhatgBeta
-         if  _est_blcg==1 {
-        local k_tBeta=(pg<`hcrb')
-        }
-        else {
-        local k_tBeta=.
-        }
-        if `k_tBeta'==1 {
-        local testBeta=(`LhatgBeta'-yg)^2
-        }
-        else {
-        local testBeta=.
-        }
+      if (`check2'==0) {
+        local bcheck4 = 1
+      }
+      else {
+        local bcheck4 = 0
+      }
 
-        sum `testBeta'
-        local Beta_TT=r(sum)
-
-        local test=(`GQ_TT'<`Beta_TT')
-
-        if `test==1{
-            noi di as res "GQ has a lower statistic"
-        }
-        else {
-            noi di as res "Beta has a lower statistic"
-        }
-*/
 *-----------------------------------------------------------------------------
  * 	Output
 *-----------------------------------------------------------------------------
@@ -1250,136 +1307,163 @@ quietly {
 
     /*** Display results */
 
-      cap: gen `pline'   = ""
-      cap: gen `seq'     = .
-      cap: gen `type2'   = .
-      cap: gen `model'   = .
-      cap: gen `var'     = .
-      cap: gen `value'   = .
-      cap: gen `bin'     = .
+    cap: gen `pline'   = ""
+    cap: gen `seq'     = .
+    cap: gen `type2'   = .
+    cap: gen `model'   = .
+    cap: gen `var'     = .
+    cap: gen `value'   = .
+    cap: gen `bin'     = .
 
-      cap: replace `pline'   = ""
-      cap: replace `seq'     = .
-      cap: replace `type2'   = .
-      cap: replace `model'   = .
-      cap: replace `var'     = .
-      cap: replace `value'   = .
-      cap: replace `bin'     = .
+    cap: replace `pline'   = ""
+    cap: replace `seq'     = .
+    cap: replace `type2'   = .
+    cap: replace `model'   = .
+    cap: replace `var'     = .
+    cap: replace `value'   = .
+    cap: replace `bin'     = .
 
-      replace `pline' = "Poverty line: `z'"
-      replace `seq'   = `z'
-      replace `var'   = _n in 1/24
-      replace `bin'   = `bins'
+    replace `pline' = "Poverty line: `z'"
+    replace `seq'   = `z'
+    replace `var'   = _n in 1/32
+    replace `bin'   = `bins'
 
-    * main results type = 1
-		   replace `type2'  = 1     in 1/8
+  * main results type = 1
+	   replace `type2'  = 1     in 1/8
 
-		*elasticities lines (type=2 and type=3)
-		  replace `type2'  = 2     	in  9
-      replace `type2'  = 3     	in  10
-      replace `type2'  = 2     	in  11
-      replace `type2'  = 3     	in  12
-      replace `type2'  = 2     	in  13
-      replace `type2'  = 3     	in  14
-      replace `type2'  = 2     	in  15
-      replace `type2'  = 3     	in  16
-      replace `type2'  = 2     	in  17
-      replace `type2'  = 3     	in  18
-      replace `type2'  = 2     	in  19
-      replace `type2'  = 3     	in  20
+	*elasticities lines (type=2 and type=3)
+	  replace `type2'  = 2     	in  9
+    replace `type2'  = 3     	in  10
+    replace `type2'  = 2     	in  11
+    replace `type2'  = 3     	in  12
+    replace `type2'  = 2     	in  13
+    replace `type2'  = 3     	in  14
+    replace `type2'  = 2     	in  15
+    replace `type2'  = 3     	in  16
+    replace `type2'  = 2     	in  17
+    replace `type2'  = 3     	in  18
+    replace `type2'  = 2     	in  19
+    replace `type2'  = 3     	in  20
 
-		* model types
-      replace `model' = 	1   	in 1/4
-      replace `model' = 	1     	in 9/14
-      replace `model' = 	2     	in 5/8
-      replace `model' = 	2     	in 15/20
+    replace `type2'  = 4      in 25/32
+
+	* model types
+    replace `model' = 	1   	  in 1/4
+    replace `model' = 	1     	in 9/14
+    replace `model' = 	2     	in 5/8
+    replace `model' = 	2     	in 15/20
+
+    replace `model' = 	1   	  in 25/28
+    replace `model' = 	2     	in 29/32
 
 
-		* main results values
-      replace `value' = `H'*100               in  1
-      replace `value' = `PG'*100              in  2
-      replace `value' = `SPG'*100             in  3
-      replace `value' = `gini_ln'             in  4
-      replace `value' = `hcrb'*100            in  5
-      replace `value' = `PgBeta'*100          in  6
-      replace `value' = `FgtBeta'*100         in  7
-      replace `value' = `GiniBeta'            in  8
+	* main results values
+    replace `value' = `H'*100               in  1
+    replace `value' = `PG'*100              in  2
+    replace `value' = `SPG'*100             in  3
+    replace `value' = `gini_ln'             in  4
+    replace `value' = `hcrb'*100            in  5
+    replace `value' = `PgBeta'*100          in  6
+    replace `value' = `FgtBeta'*100         in  7
+    replace `value' = `GiniBeta'            in  8
 
-		* elasticities
-		  replace `value' = `elhmu'               in  9
-      replace `value' = `elhgini'             in  10
-      replace `value' = `elpgmu'              in  11
-      replace `value' = `elpggini'            in  12
-      replace `value' = `elspgmu'             in  13
-      replace `value' = `elspggini'           in  14
-      replace `value' = `elhmub'              in  15
-      replace `value' = `elhginib'            in  16
-      replace `value' = `elpgmub'             in  17
-      replace `value' = `elpgginib'           in  18
-      replace `value' = `elspgmub'            in  19
-      replace `value' = `elspgginib'          in  20
+	* elasticities
+	  replace `value' = `elhmu'               in  9
+    replace `value' = `elhgini'             in  10
+    replace `value' = `elpgmu'              in  11
+    replace `value' = `elpggini'            in  12
+    replace `value' = `elspgmu'             in  13
+    replace `value' = `elspggini'           in  14
+    replace `value' = `elhmub'              in  15
+    replace `value' = `elhginib'            in  16
+    replace `value' = `elpgmub'             in  17
+    replace `value' = `elpgginib'           in  18
+    replace `value' = `elspgmub'            in  19
+    replace `value' = `elspgginib'          in  20
 
-		* output label
-		  replace `var' = 1       in  1
-      replace `var' = 2       in  2
-      replace `var' = 3       in  3
-      replace `var' = 4       in  4
-      replace `var' = 1       in  5
-      replace `var' = 2       in  6
-      replace `var' = 3       in  7
-      replace `var' = 4       in  8
-      replace `var' = 1       in  9
-      replace `var' = 1       in  10
-      replace `var' = 2       in  11
-      replace `var' = 2       in  12
-      replace `var' = 3       in  13
-      replace `var' = 3       in  14
-      replace `var' = 1       in  15
-      replace `var' = 1       in  16
-      replace `var' = 2       in  17
-      replace `var' = 2       in  18
-      replace `var' = 3       in  19
-      replace `var' = 3       in  20
+	* output label
+	  replace `var' = 1       in  1
+    replace `var' = 2       in  2
+    replace `var' = 3       in  3
+    replace `var' = 4       in  4
+    replace `var' = 1       in  5
+    replace `var' = 2       in  6
+    replace `var' = 3       in  7
+    replace `var' = 4       in  8
+    replace `var' = 1       in  9
+    replace `var' = 1       in  10
+    replace `var' = 2       in  11
+    replace `var' = 2       in  12
+    replace `var' = 3       in  13
+    replace `var' = 3       in  14
+    replace `var' = 1       in  15
+    replace `var' = 1       in  16
+    replace `var' = 2       in  17
+    replace `var' = 2       in  18
+    replace `var' = 3       in  19
+    replace `var' = 3       in  20
 
 		if ("`benchmark'" == "benchmark") {
 			* add apoverty and ainequal to main results (type=1)
-			replace `type2'	=	1 		in 21
-			replace `type2'	=	1 		in 22
-			replace `type2'	=	1 		in 23
-			replace `type2'	=	1 		in 24
+			replace `type2'	=	1 		       in 21/24
 			* add apoverty and ainequal model (model=0)
-			replace `model'	=	0		in 21/24
+			replace `model'	=	0		         in 21/24
 			* add apoverty and ainequal values
-			replace `value' = ``pl'afgt0'            in  21
-			replace `value' = ``pl'afgt1'            in  22
-			replace `value' = ``pl'afgt2'            in  23
-			replace `value' = ``pl'agini'            in  24
+			replace `value' = ``pl'afgt0'  in  21
+			replace `value' = ``pl'afgt1'  in  22
+			replace `value' = ``pl'afgt2'  in  23
+			replace `value' = ``pl'agini'  in  24
 			* add output label
 			replace `var' = 1       in  21
 			replace `var' = 2       in  22
 			replace `var' = 3       in  23
 			replace `var' = 4       in  24
-		}
 
-    label define var 1 "FGT(0)", add modify
-    label define var 2 "FGT(1)", add modify
-    label define var 3 "FGT(2)", add modify
-    label define var 4 "Gini", add modify
+    }
 
-    label define model 0 "Unit Record", add modify
-    label define model 1 "QG Lorenz Curve", add modify
-    label define model 2 "Beta Lorenz Curve", add modify
+    replace `var' = 5      in  25
+    replace `var' = 6      in  26
+    replace `var' = 7      in  27
+    replace `var' = 8      in  28
+    replace `var' = 5      in  29
+    replace `var' = 6      in  30
+    replace `var' = 7      in  31
+    replace `var' = 8      in  32
 
-    label define type 1 "Estimated Value", add modify
-    label define type 2 "with respect to the Mean", add modify
-    label define type 3 "with respect to the Gini", add modify
+* checks
+    replace `value' = `ccheck1'  in 25
+    replace `value' = `ccheck2'  in 26
+    replace `value' = `ccheck3'  in 27
+    replace `value' = `ccheck4'  in 28
 
-    label define value -99 "NA", modify
+    replace `value' = 1           in 29
+    replace `value' = 1           in 30
+    replace `value' = `bcheck3'   in 31
+    replace `value' = `bcheck4'   in 32
 
-*   gen type = `type'
-*   gen model = `model'
-*   gen var     = `var'
-*   gen value   = `value'
+* labels
+    label define var 1 "FGT(0)" , add modify
+    label define var 2 "FGT(1)" , add modify
+    label define var 3 "FGT(2)" , add modify
+    label define var 4 "Gini"   , add modify
+
+    label define var 5  "L(0;pi)=0"                       , add modify
+    label define var 6  "L(1;pi)=1"                       , add modify
+    label define var 7  "L'(0+;pi)>=0"                    , add modify
+    label define var 8  "L''(p;pi)>=0 for p within (0,1)" , add modify
+
+    label define model 0 "Unit Record"                    , add modify
+    label define model 1 "QG Lorenz Curve"                , add modify
+    label define model 2 "Beta Lorenz Curve"              , add modify
+
+    label define type 1 "Estimated Value"                 , add modify
+    label define type 2 "with respect to the Mean"        , add modify
+    label define type 3 "with respect to the Gini"        , add modify
+    label define type 4 "Checking for consistency of lorenz curve estimation", add modify
+
+    label define value -99  "NA"  , add modify
+    label define value 1    "OK"  , add modify
+    label define value 0    "FAIL", add modify
 
     label values `model'  model
     label values `type2'  type
@@ -1455,142 +1539,111 @@ quietly {
 	}
 
 *-----------------------------------------------------------------------------
-* Display POverty and Inequality Results
+* Display Poverty and Inequality Results
 *-----------------------------------------------------------------------------
 
     noi di ""
     noi di ""
-    noi di "Estimated Poverty and Inequality Measures:"
+    noi di as text "Estimated Poverty and Inequality Measures:"
     noi tabdisp `var' `model' if `var' != . & `type2' == 1, cell(`value')
-    noi di "Mean `inc': " as res %16.2f `mu'
+    noi di as text "Mean `inc':" _col(15) as res %16.2f `mu'
+    noi di as text "Threshold:" _col(15) as res %16.2f `z'
 
 *-----------------------------------------------------------------------------
 * Display Elasticities
 *-----------------------------------------------------------------------------
 
 
-		`noelast' di ""
-    `noelast' di ""
-    `noelast' di "Estimated Elasticities:"
-    `noelast' tabdisp `var' `model' `type2' if `var' != . & `type2' != 1 & `value' != . , cell(`value')
+	`noelast' di ""
+  `noelast' di ""
+  `noelast' di as text "Estimated Elasticities:"
+  `noelast' tabdisp `var' `model' `type2' if `var' != . & `type2' != 1 & `type2' != 4 & `value' != . , cell(`value')
 
 
 *-----------------------------------------------------------------------------
 *  Checking for consistency of lorenz curve estimation (section 4)
 *-----------------------------------------------------------------------------
 
-		noi di as text "Estimation Validity"
+    ***********************
+    /* GQ Lorenz Curve */
+    ***********************
 
-        ***********************
-        /* GQ Lorenz Curve */
-        ***********************
-        quietly {
-
-            `nocheck' di ""
-            `nocheck' di ""
-            `nocheck' di as text "Checking for consistency of lorenz curve estimation: " as res "GQ Lorenz Curve"
-
-            /** Condition 1 */
-            if (`e' < 0) {
-                `nocheck' di as text "L(0;pi)=0: " as res  "OK"
-                local ccheck1 = 1
-            }
-            else {
-                `nocheck' di as text "L(0;pi)=0: " as err "FAIL"
-                local ccheck1 = 0
-            }
-
-            /** Condition 2 */
-            local t = (`a'+`c')
-            if (`t' >= 1) {
-                `nocheck' di as text "L(1;pi)=1: " as res "OK (value=" %9.4f `t' ")"
-                local ccheck2 = 1
-            }
-            else {
-                `nocheck'di as text "L(1;pi)=1: " as err "FAIL (value=" %9.4f `t' ")"
-                local ccheck2 = 0
-            }
-
-            /** Condition 3 */
-            if (`c' >= 0) {
-                `nocheck' di as text "L'(0+;pi)>=0: " as res  "OK"
-                local ccheck3 = 1
-            }
-            else {
-                `nocheck' di as text "L'(0+;pi)>=0: " as err "FAIL"
-                local ccheck3 = 0
-            }
+    `nocheck' di as text "Estimation Validity"
 
 
-            /** Condition 4 */
+    `nocheck' di ""
+    `nocheck' di ""
+    `nocheck' di as text "Checking for consistency of lorenz curve estimation: " as res "GQ Lorenz Curve"
 
-            if ( `m' < 0 | (( 0 < `m' <(`n'^2/(4*`e'^2)))	& `n' >= 0) | ((0 < `m' < (-`n'/2)) & (`m' < (`n'^2 /(4*`e'^2))))) {
-                `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
-                local ccheck4 = 1
-            }
-            else {
-                `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
-                local ccheck4 = 0
-            }
+    /** Condition 1 */
+    if (`ccheck1' == 1) {
+        `nocheck' di as text "L(0;pi)=0: " as res  "OK"
+    }
+    else {
+        `nocheck' di as text "L(0;pi)=0: " as err "FAIL"
+    }
 
-        }
+    /** Condition 2 */
+    local t = (`a'+`c')
+    if (`ccheck2' == 1) {
+        `nocheck' di as text "L(1;pi)=1: " as res "OK (value=" %9.4f `t' ")"
+    }
+    else {
+        `nocheck' di as text "L(1;pi)=1: " as err "FAIL (value=" %9.4f `t' ")"
+    }
 
-        ***********************
-        /* Beta Lorenz curve */
-        ***********************
+    /** Condition 3 */
+    if (`ccheck3' == 1) {
+        `nocheck' di as text "L'(0+;pi)>=0: " as res  "OK"
+    }
+    else {
+        `nocheck' di as text "L'(0+;pi)>=0: " as err "FAIL"
+    }
 
-        `nocheck' di ""
-        `nocheck' di as text "Checking for consistency of lorenz curve estimation: " as res "Beta Lorenz curve"
 
-        /** Condition 1 */
-        * automatically satisfied by the functional form
+    /** Condition 4 */
 
-        /** Condition 2 */
-        * automatically satisfied by the functional form
+    if (`ccheck4' == 1) {
+        `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
+    }
+    else {
+        `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
+    }
 
-        /** Condition 3 */
-        	* We check the validity of the Beta Lorenz curve
-        	local check1 = 1- `aatheta'*.001^`aagama'*.999^`aadelta'*(`aagama'/.001-`aadelta'/.999)
+    ***********************
+    /* Beta Lorenz curve */
+    ***********************
 
-        /** Condition 4 */
+    `nocheck' di ""
+    `nocheck' di as text "Checking for consistency of lorenz curve estimation: " as res "Beta Lorenz curve"
 
-        	local check2 = 0
-        	local i=.01
-        	while `i'<1{
-        		local chk = `aatheta'*`i'^`aagama'*(1-`i')^`aadelta'*((`aagama'*(1-`aagama')/`i'^2)+(2*`aagama'*`aadelta'/*
-        		*//(`i'*(1-`i')))+(`aadelta'*(1-`aadelta')/(1-`i')^2))
-        		if `chk'<0{
-        			local check2=1
-        		}
-        		else{
-        		}
-        		local i=`i'+.01
-        	}
+    /** Condition 1 */
+    * automatically satisfied by the functional form
+    `nocheck' di as text "L(0;pi)=0: " as res "OK (automatically satisfied by the functional form)"
 
-        `nocheck' di as text "L(0;pi)=0: " as res "OK (automatically satisfied by the functional form)"
+    /** Condition 2 */
+    * automatically satisfied by the functional form
+    `nocheck' di as text "L(1;pi)=1: " as res "OK (automatically satisfied by the functional form)"
 
-        `nocheck' di as text "L(1;pi)=1: " as res "OK (automatically satisfied by the functional form)"
+    /** Condition 3 */
+    	* We check the validity of the Beta Lorenz curve
+    if (`bcheck3' == 1) {
+      `nocheck' di as text "L'(0+;pi)>=0: " as res  "OK"
+    }
+    else {
+      `nocheck' di as text "L'(0+;pi)>=0: " as err "FAIL "
+		 }
 
-        if `check1'>=0  {
-            `nocheck' di as text "L'(0+;pi)>=0: " as res  "OK"
-			local bcheck3 = 1
-        }
-        else {
-            `nocheck' di as text "L'(0+;pi)>=0: " as err "FAIL "
-			local bcheck3 = 0
-        }
+    /** Condition 4 */
+    if (`bcheck4'==0) {
+      `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
+    }
+    else {
+      `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
+    }
+	`nocheck' di as text ""
+	`nocheck' di as text ""
 
-        if `check2'==0 {
-            `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
-			local bcheck4 = 1
-        }
-        else {
-            `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
-			local bcheck4 = 0
-        }
-
-		`nocheck' di ""
-		`nocheck' di ""
 
 
 *-----------------------------------------------------------------------------
@@ -1599,73 +1652,76 @@ quietly {
 
     tempname tmp`pl'
 
-		mkmat  `seq' `var' `model' `type2' `value' if `value' != ., matrix(`tmp`pl'')
+		mkmat  `seq' `var' `model' `type2' `value' if `value' != . , matrix(`tmp`pl'')
 
 		matrix colnames `tmp`pl'' = povline indicator model type value
 
 		mat check = `tmp`pl''
 
   	matrix rownames `tmp`pl'' = H  PG  SPG  gini_ln  hcrb  PgBeta	 FgtBeta	 GiniBeta  ///
-                  elhmu	  elhgini 	elpgmu	 elpggini	 elspgmu	 elspggini	 elhmub	///
-                  elhginib	 elpgmub	 elpgginib	 elspgmub	 elspgginib ///
-                  `rownames_unitrecord'
+      elhmu	  elhgini 	elpgmu	 elpggini	 elspgmu	 elspggini	 elhmub	///
+      elhginib	 elpgmub	 elpgginib	 elspgmub	 elspgginib ///
+      `rownames_unitrecord'                     ///
+      check1qg check2qg check2qg check2qg       ///
+      check1b check2b check2b check2b
 
-      mat `rtmp' = nullmat(`rtmp') \ `tmp`pl''
 
-        return scalar Hgq   		  = `H'*100
-        return scalar PGgq  		  = `PG'*100
-        return scalar SPGgq 		  = `SPG'*100
-        return scalar GINIgq  		= `gini_ln'
-        return scalar Hb    		  = `hcrb'*100
-        return scalar PGb   		  = `PgBeta'*100
-        return scalar SPGb  		  = `FgtBeta'*100
-        return scalar GINIb 		  = `GiniBeta'
-        return scalar elhmu       = `elhmu'
-        return scalar elhgini     = `elhgini'
-        return scalar elpgmu      = `elpgmu'
-        return scalar elpggini    = `elpggini'
-        return scalar elspgmu     = `elspgmu'
-        return scalar elspggini   = `elspggini'
-        return scalar elhmub      = `elhmub'
-        return scalar elhginib    = `elhginib'
-        return scalar elpgmub     = `elpgmub'
-        return scalar elpgginib   = `elpgginib'
-        return scalar elspgmub    = `elspgmub'
-        return scalar elspgginib  = `elspgginib'
+    mat `rtmp' = nullmat(`rtmp') \ `tmp`pl''
 
-	if ("`grouped'" != "") {
-		return scalar agq = `gqg'[1,1]
-		return scalar bgq = `gqg'[1,2]
-		return scalar cgq = `gqg'[1,3]
+    return scalar Hgq   		  = `H'*100
+    return scalar PGgq  		  = `PG'*100
+    return scalar SPGgq 		  = `SPG'*100
+    return scalar GINIgq  		= `gini_ln'
+    return scalar Hb    		  = `hcrb'*100
+    return scalar PGb   		  = `PgBeta'*100
+    return scalar SPGb  		  = `FgtBeta'*100
+    return scalar GINIb 		  = `GiniBeta'
+    return scalar elhmu       = `elhmu'
+    return scalar elhgini     = `elhgini'
+    return scalar elpgmu      = `elpgmu'
+    return scalar elpggini    = `elpggini'
+    return scalar elspgmu     = `elspgmu'
+    return scalar elspggini   = `elspggini'
+    return scalar elhmub      = `elhmub'
+    return scalar elhginib    = `elhginib'
+    return scalar elpgmub     = `elpgmub'
+    return scalar elpgginib   = `elpgginib'
+    return scalar elspgmub    = `elspgmub'
+    return scalar elspgginib  = `elspgginib'
+
+  	if ("`grouped'" != "") {
+  		return scalar agq = `gqg'[1,1]
+  		return scalar bgq = `gqg'[1,2]
+  		return scalar cgq = `gqg'[1,3]
     }
     else {
-        return scalar agq = `gq'[1,1]
-        return scalar bgq = `gq'[1,2]
-        return scalar cgq = `gq'[1,3]
+      return scalar agq = `gq'[1,1]
+      return scalar bgq = `gq'[1,2]
+      return scalar cgq = `gq'[1,3]
     }
 
     if ("`grouped'" != "") {
-		 return scalar theta   =   `cofbg'[1,3]
-         return scalar gama    =   `cofbg'[1,1]
-         return scalar delta   =   `cofbg'[1,2]
+  		 return scalar theta   =   `cofbg'[1,3]
+       return scalar gama    =   `cofbg'[1,1]
+       return scalar delta   =   `cofbg'[1,2]
     }
     else {
-         return scalar theta   =   `cofb'[1,3]
-         return scalar gama    =   `cofb'[1,1]
-         return scalar delta   =   `cofb'[1,2]
+       return scalar theta   =   `cofb'[1,3]
+       return scalar gama    =   `cofb'[1,1]
+       return scalar delta   =   `cofb'[1,2]
     }
 
-	if ("`nochecks'" != "") {
-        return scalar check1b   	= 1
-        return scalar check2b   	= 1
-        return scalar check3b   	= `bcheck3'
-        return scalar check4b   	= `bcheck4'
-        return scalar check1gq  	= `ccheck1'
-        return scalar check2gq  	= `ccheck2'
-        return scalar check3gq  	= `ccheck3'
-        return scalar check4gq  	= `ccheck4'
-        return scalar t         	= `t'
-	}
+  	if ("`nochecks'" != "") {
+      return scalar check1b   	= 1
+      return scalar check2b   	= 1
+      return scalar check3b   	= `bcheck3'
+      return scalar check4b   	= `bcheck4'
+      return scalar check1gq  	= `ccheck1'
+      return scalar check2gq  	= `ccheck2'
+      return scalar check3gq  	= `ccheck3'
+      return scalar check4gq  	= `ccheck4'
+      return scalar t         	= `t'
+  	}
 
     return scalar mu        	= `mu'
 
@@ -1675,23 +1731,17 @@ quietly {
 
     local ppp = `ppp' + 1
 
-}
+  }
 
-	cap: drop yg ag bg cg yg2 x1g x2g
+  restore
 
-	cap: drop y1 a b c y2 x1 x2
-
+  return local  zlines  "`zl'"
   return scalar zl      = `Npline'
-
   return matrix results = `rtmp'
 
-}
 
-restore
 
 end
-
-
 
 ********************************************************************************
 * cleanversion ado
