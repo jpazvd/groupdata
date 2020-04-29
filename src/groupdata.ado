@@ -121,9 +121,9 @@ quietly {
     exit 198
 		noi di ""
 	}
-	if (strmatch(" 1 2 5 6","*`type'*") == 1) & ("`binvar'" == "") {
+	if (strmatch(" 1 2 5 6","*`type'*") == 1) & ("`binvar'" == "") & ("`grouped'" == "") & (("`coefgq'" == "")  | ("`coefb'" == ""))  {
 		noi di ""
-		di as err "Please make sure you specified the binvar option"
+		di as err "Please make sure you specified the binvar option."
 		exit 198
 	}
 
@@ -1682,6 +1682,7 @@ quietly {
 		}
 
 		return scalar mu        	= `mu'
+		return scalar sd			= `sd'
 		return scalar z`pl'       = `z'
 
 		local ppp = `ppp' + 1
