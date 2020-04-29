@@ -25,6 +25,9 @@ global output "${myados}/groupdata/qa/"
 cd "${myados}\groupdata\src"
 discard
 
+
+do "${myados}\groupdata\src\groupdata.ado"
+
 *use "${clone}\02_rawdata\INEP_SAEB\SAEB_ALUNO_COVID.dta", clear
 
 *-----------------------------------------------------------------------------
@@ -83,13 +86,13 @@ graph twoway		///
 *-----------------------------------------------------------------------------
 * Learning Poverty Simulation (distributionally neutral) - generate group data
 
-do "${myados}\groupdata\src\groupdata.ado"
-
 use "$output\score2017", clear
+
+do "${myados}\groupdata\src\groupdata.ado"
 
 * check group data estiamtes from unit records 
 
-groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group 
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) grouped nofigure
 
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmark nofigure 
 
