@@ -25,6 +25,9 @@ global output "${myados}/groupdata/qa/"
 cd "${myados}\groupdata\src"
 discard
 
+
+do "${myados}\groupdata\src\groupdata.ado"
+
 *use "${clone}\02_rawdata\INEP_SAEB\SAEB_ALUNO_COVID.dta", clear
 
 *-----------------------------------------------------------------------------
@@ -85,9 +88,11 @@ graph twoway		///
 
 use "$output\score2017", clear
 
+do "${myados}\groupdata\src\groupdata.ado"
+
 * check group data estiamtes from unit records 
 
-groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group 
+groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) grouped nofigure
 
 groupdata score_lp [aw=learner_weight_lp] if idgrade == 5, z(200) group benchmark nofigure 
 
@@ -100,22 +105,28 @@ alorenz score_lp [aw=learner_weight_lp] if idgrade == 5, fullview points(15)
 mat a = r(lorenz1) 
 svmat double a, names(col)
 						
+do "${myados}\groupdata\src\groupdata.ado"
 
 * mean  (Type 1: OK) accepts only AW
-groupdata ac_prop_score_lp [aw=ac_prop_pop] , z(200) mu(214.28) nofigure type(1) nochecks noelasticities
+groupdata ac_prop_score_lp 	[aw=ac_prop_pop] 	, z(200) mu(214.28) type(1) nofigure nochecks noelasticities
 						
 * mean  (Type 2: OK) accepts only AW
-groupdata prop_score_lp [aw=prop_pop ] , z(200) mu(214.28) nofigure type(2) nochecks noelasticities
+groupdata prop_score_lp 	[aw=prop_pop ] 		, z(200) mu(214.28) type(2) nofigure nochecks noelasticities
 						
-* mean  (Type 5: OK) noweight; pw; fw
-groupdata mean_score_lp , z(200) mu(214.28) nofigure type(5) nochecks noelasticities
+* mean  (Type 5: Fail) noweight
+groupdata mean_score_lp 						, z(200) mu(214.28) type(5) nofigure nochecks noelasticities
+
+* mean  (Type 5: OK) pw
+groupdata mean_score_lp 	[pw=prop_pop]		, z(200) mu(214.28) type(5) nofigure nochecks noelasticities
+
 
 * max 	(Type 6: OK)
 
 tabstat score_lp [aw= learner_weight_lp ] , by(idgrade) stat(mean min max)
 
-groupdata maxscore_lp , z(200) mu(214.28) nofigure type(5) nochecks noelasticities
-groupdata maxscore_lp , z(200) mu(214.28) nofigure type(6) nochecks noelasticities min(92.0619) max(334.22818)
+groupdata maxscore_lp	 						, z(200) mu(214.28) type(5) nofigure nochecks noelasticities
+groupdata maxscore_lp	 						, z(200) mu(214.28) type(6) nofigure nochecks noelasticities min(92.0619) max(334.22818)
+
 
 
 
