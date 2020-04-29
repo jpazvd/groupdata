@@ -59,7 +59,7 @@ program define groupdata, rclass
       ,                         ///
         Zl(string)            	///
           [						///
-    			mean(string)    ///
+    			Mean(string)    ///
 				GROUPed         ///
 				BINs(real -99)  ///
 				REGress			///
@@ -76,6 +76,7 @@ program define groupdata, rclass
 				coefb(string)	///
 				coefgq(string)  ///
     			debug			///
+				binvar(string)	///
           ]
 
 preserve
@@ -120,16 +121,22 @@ quietly {
     exit 198
 		noi di ""
 	}
+	if (strmatch(" 1 2 5 6","*`type'*") == 1) & ("`binvar'" == "") {
+		noi di ""
+		di as err "Please make sure you specified the binvar option"
+		exit 198
+	}
+
 	if (strmatch(" 1 2 5 6","*`type'*") == 0) {
 		noi di ""
-    di as err "Please select a valid data type. see help."
-		exit 198
+		di as err "Please select a valid data type. see help."
 		noi di ""
 		noi di as text "Type 1 grouped data: " as res "P=Cumulative proportion of population, L=Cumulative proportion of income held by that proportion of the population"
 		noi di as text "Type 2 grouped data: " as res "Q=Proportion of population, R=Proportion of incometype"
 		noi di as text "Type 5 grouped data: " as res "W=Percentage of the population in a given interval of incomes, X=The mean income of that interval"
 		noi di as text "Type 6 grouped data: " as res "W=Percentage of the population in a given interval of incomes, X=The max income of that interval"
 		noi di ""
+		exit 198
 	}
 	
 	* check coef option / both vectors must be specified
@@ -504,6 +511,16 @@ quietly {
 				noi di "Type 6 grouped data: W=Percentage of the population in a given interval of incomes, X=The max income of that interval"
 			}
 
+			
+	************************************
+	** Sort database according to binidentifier
+	************************************
+		
+		tempvar ccc
+		gen `ccc' = `binvar' == .
+		gsort `ccc' `binvar'
+	
+			
 	************************************
 	** Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative proportion of income held by that proportion of the population
 	************************************
@@ -538,8 +555,8 @@ quietly {
 	** Type 5 grouped data: W=Percentage of the population in a given interval of incomes, X=The mean income of that interval
 	************************************
 
+		
 		if ("`type'" == "5") {
-		*set trace on
 			sum `inc'											if `touse'
 			local bins = r(N)
 			local last = `bins'-1
@@ -578,7 +595,7 @@ quietly {
 				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
 			}
 		}
-
+		
 	************************************
 	** Type 6 grouped data: W=Percentage of the population in a given interval of incomes, X=The max income of that interval
 	************************************
