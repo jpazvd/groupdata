@@ -640,7 +640,7 @@ quietly {
 				tempvar LLLLL PPPPP
 				gen double 	`pg' 	= 	`exp2'									in 1/`bins'
 				gen 	double `delta' = .										
-				replace `delta' = (`inc'[_n]-`min')			/2 		`			in 1			
+				replace `delta' = (`inc'[_n]-`min')			/2 					in 1			
 				replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 					in 2/`last'		
 				replace `delta' = (`max'	-`inc'[_n-1])	/2 					in `bins'		
 				replace `pg' = `pg'[_n]+`pg'[_n-1] 								in 2/`bins'			
@@ -994,6 +994,7 @@ quietly {
 		local ldph = ((`r'*`r')/8)*((`m'*(`H'*`H')+ `n'*`H' + `e'*`e')^(-3/2))
 
 		/*** Gini */
+		* For the GQ Lorenz curve, the Gini formulas are valid under the condition a % c $1.
 		#delim ;
 		if `m'<0 { ;
 			local gini_tt = (`e'/2)- `n'*(`b'+2)/(4*`m') +
