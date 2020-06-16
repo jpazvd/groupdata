@@ -69,6 +69,7 @@
 
 # txt files in selected input folders
 !qa/*.txt
+!qa/aziz_groupdata.do
 
 #######################
 # Include all the files with passwords or tokens here. All files named
