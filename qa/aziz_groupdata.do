@@ -27,4 +27,6 @@ use "$root\qa\test_group.dta", clear
 * run groupdata
 *-------------------------------------------------------------------------------
 
-groupdata
+groupdata var2017 [pw=wtg], z(4950)  mean(7542) type(5) binvar(decile) nofigures
+
+
