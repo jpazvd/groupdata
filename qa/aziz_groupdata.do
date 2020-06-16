@@ -9,6 +9,12 @@ if "$upi" == "wb255520" {
 	global root "C:\Users\wb255520\GitHub\myados\groupdata"
 }
 
+* Aziz
+if "$upi" == "wb408971" {
+	global root "C:\Users\wb408971\Documents\GitHub\groupdata"
+}
+
+
 *-------------------------------------------------------------------------------
 * to set parameters in the code 
 *-------------------------------------------------------------------------------
