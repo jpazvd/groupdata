@@ -121,9 +121,9 @@ quietly {
     exit 198
 		noi di ""
 	}
-	if (strmatch(" 1 2 5 6","*`type'*") == 1) & ("`binvar'" == "") {
+	if (strmatch(" 1 2 5 6","*`type'*") == 1) & ("`binvar'" == "") & ("`grouped'" == "") & (("`coefgq'" == "")  | ("`coefb'" == ""))  {
 		noi di ""
-		di as err "Please make sure you specified the binvar option"
+		di as err "Please make sure you specified the binvar option."
 		exit 198
 	}
 
@@ -518,7 +518,7 @@ quietly {
 		
 		tempvar ccc
 		gen `ccc' = `binvar' == .
-		gsort `ccc' `binvar'
+		gsort `ccc' -`touse' `binvar'
 	
 			
 	************************************
@@ -530,8 +530,8 @@ quietly {
 			local bins = r(N)
 			local last = `bins'-1
 			if (substr(trim("`wtg2'"),1,2) == "aw") {
-				gen `Lg' = `inc'/100					if `touse'
-				gen `pg' = `exp2'/100					if `touse'
+				gen `Lg' = `inc'/100					in 1/`bins'
+				gen `pg' = `exp2'/100					in 1/`bins'
 			}
 		}
 
@@ -544,10 +544,10 @@ quietly {
 			local bins = r(N)
 			local last = `bins'-1
 			if (substr(trim("`wtg2'"),1,2) == "aw") {
-				gen `Lg' = `inc'/100						if `touse'
-				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
-				gen `pg' = `exp2'/100						if `touse'
-				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
+				gen `Lg' = `inc'/100						in 1/`bins'
+				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	in 2/`bins'
+				gen `pg' = `exp2'/100						in 1/`bins'
+				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	in 2/`bins'
 			}
 		}
 
@@ -555,47 +555,53 @@ quietly {
 	** Type 5 grouped data: W=Percentage of the population in a given interval of incomes, X=The mean income of that interval
 	************************************
 
-		
 		if ("`type'" == "5") {
-			sum `inc'											if `touse'
+		  * identify number of bins
+			sum `inc'											if `touse'			
 			local bins = r(N)
 			local last = `bins'-1
 			if ("`wtg2'" == "") {
-				gen double 	`pg' 	= 	1/`bins'				if `touse'
-				replace 	`pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
-				sum `inc'										if `touse'
-				local sumL = r(sum)
-				gen double 	`Lg' = `inc'/`sumL'					if `touse'
-				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l		if `touse'
-				`noidebug' list `pg' `inc' `Lg' `LLLLL' `PPPPP'
+				gen double 	`pg' 	= 	1/`bins'				in 1/`bins'
+				replace 	`pg' = `pg'[_n]+`pg'[_n-1] 			in 2/`bins'	
+				sum `inc'										in 1/`bins'
+				local sumL = r(sum)								
+				gen double 	`Lg' = `inc'/`sumL'					in 1/`bins'
+				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] 				in 2/`bins'
+				
+				`noidebug' di as text `"("`wtg2'" == "")"'
+				`noidebug' list  `ccc' `binvar' `pg' `inc' `Lg' `LLLLL' `PPPPP' `touse' if `touse'
+				`noidebug' sum  `ccc' `binvar' `pg' `inc' `Lg' `LLLLL' `PPPPP' `touse'  if `touse'
 			}
 
 			if (substr(trim("`wtg2'"),1,2) == "pw") {
 				tempvar LLLLL PPPPP
-				gen 	`pg' = `exp2'
-				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l
-				gen double `PPPPP' = `exp2'*`inc'*100000
-				sum `PPPPP'
+				gen 	`pg' = `exp2'							in 1/`bins'
+				replace `pg' = `pg'[_n]+`pg'[_n-1] 				in 2/`bins'
+				gen double `PPPPP' = `exp2'*`inc'*100000		in 1/`bins'
+				sum `PPPPP'										in 1/`bins'
 				local sumL = r(sum)
-				gen double 	`LLLLL' = `PPPPP'/`sumL'
-				replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] in 2/l
+				gen double 	`LLLLL' = `PPPPP'/`sumL'			in 1/`bins'
+				replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] in 2/`bins'
 				gen double `Lg' = `LLLLL'
-				`noidebug' list `pg' `inc' `Lg' `LLLLL' `PPPPP'
+				`noidebug' di as text `"(substr(trim("`wtg2'"),1,2) == "pw")"'
+				`noidebug' list  `ccc' `binvar' `pg' `inc' `Lg' `LLLLL' `PPPPP' `touse' if `touse'
 			}
 
 
 			if (substr(trim("`wtg2'"),1,2) == "fw") {
-				sum `exp2'									if `touse'
+				sum `exp2'									in 1/`bins'
 				local sumP = r(sum)
-				gen double 	`pg' = `exp2'/`sumP'			if `touse'
-				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	if `touse'
-				sum `inc' 	[`weight'`exp']					if `touse'
+				gen double 	`pg' = `exp2'/`sumP'			in 1/`bins'
+				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l	in 2/`bins'
+				sum `inc' 	[`weight'`exp']					in 1/`bins'
 				local sumL = r(sum)
-				gen doulbe 	`Lg' = `inc'/`sumL'				if `touse'
-				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	if `touse'
+				gen doulbe 	`Lg' = `inc'/`sumL'				in 1/`bins'
+				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	in 2/`bins'
+				`noidebug' di as text `"(substr(trim("`wtg2'"),1,2) == "fw")"'
+				`noidebug' list  `ccc' `binvar' `pg' `inc' `Lg' `LLLLL' `PPPPP' `touse' if `touse'
 			}
 		}
-		
+
 	************************************
 	** Type 6 grouped data: W=Percentage of the population in a given interval of incomes, X=The max income of that interval
 	************************************
@@ -603,6 +609,7 @@ quietly {
 		tempvar inc2 delta
 		if ("`type'" == "6") {
 		  * mean welare
+		  * identify number of bins
 			sum `inc'															if `touse'
 			local bins = r(N)
 			local bins = `bins'+1
@@ -613,60 +620,60 @@ quietly {
 			noi di "bins: " `bins'
 		  * if weights are not specified
 			if ("`wtg2'" == "") {
-				gen double 	`pg' 	= 	1/`bins'								if `touse'
+				gen double 	`pg' 	= 	1/`bins'								in 1/`bins'
 				gen 	double `delta' = .
-				replace `delta' = (`inc'[_n]-`min')			/2 	in 1			if `touse'
-				replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'		if `touse'
-				replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'		if `touse'
-				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l						if `touse'
-				gen double `inc2' = .											if `touse'
-				replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
-				replace `inc2' = `max' - `delta'				in `bins'		if `touse'
-				sum `inc2'														if `touse'
+				replace `delta' = (`inc'[_n]-`min')			/2 					in 1
+				replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 					in 1/`bins'
+				replace `delta' = (`max'	-`inc'[_n-1])	/2 					in `bins'		
+				replace `pg' = `pg'[_n]+`pg'[_n-1] 								in 2/`bins'						
+				gen double `inc2' = .											
+				replace `inc2' = `inc' - `delta'								in 1/`last'		
+				replace `inc2' = `max' - `delta'								in `bins'		
+				sum `inc2'														in 1/`bins'
 				local sumL = r(sum)
-				gen double 	`Lg' = `inc2'/`sumL'								if `touse'
-				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l						if `touse'
-				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
+				gen double 	`Lg' = `inc2'/`sumL'								in 1/`bins'
+				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l						in 2/`bins'
+				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' 					if `touse'
 			}
 
 			if (substr(trim("`wtg2'"),1,2) == "pw") {
 				tempvar LLLLL PPPPP
-				gen double 	`pg' 	= 	`exp2'									if `touse'
-				gen 	double `delta' = .										if `touse'
-				replace `delta' = (`inc'[_n]-`min')			/2 	in 1			if `touse'
-				replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'		if `touse'
-				replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'		if `touse'
-				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l						if `touse'
-				gen double `inc2' = .											if `touse'
-				replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
-				replace `inc2' = `max' - `delta'				in `bins'		if `touse'
-				gen double `PPPPP' = `exp2'*`inc2'*100000
-				sum `PPPPP'
+				gen double 	`pg' 	= 	`exp2'									in 1/`bins'
+				gen 	double `delta' = .										
+				replace `delta' = (`inc'[_n]-`min')			/2 		`			in 1			
+				replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 					in 2/`last'		
+				replace `delta' = (`max'	-`inc'[_n-1])	/2 					in `bins'		
+				replace `pg' = `pg'[_n]+`pg'[_n-1] 								in 2/`bins'			
+				gen double `inc2' = .											
+				replace `inc2' = `inc' - `delta'								in 1/`last'		
+				replace `inc2' = `max' - `delta'								in `bins'		
+				gen double `PPPPP' = `exp2'*`inc2'*100000						in 1/`bins'
+				sum `PPPPP'														in 1/`bins'
 				local sumL = r(sum)
-				gen double 	`LLLLL' = `PPPPP'/`sumL'
-				replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] in 2/`bins'
-				gen double `Lg' = `LLLLL'
-				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
+				gen double 	`LLLLL' = `PPPPP'/`sumL'							in 1/`bins'
+				replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] 				in 2/`bins'
+				gen double `Lg' = `LLLLL'										in 1/`bins'
+				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' 					if `touse'
 			}
 
 			if (substr(trim("`wtg2'"),1,2) == "fw") {
-			sum `exp2'														if `touse'
+				sum `exp2'														in 1/`bins'
 				local sumP = r(sum)
-				gen double 	`pg' = `exp2'/`sumP'								if `touse'
+				gen double 	`pg' = `exp2'/`sumP'								in 1/`bins'
 
-				gen 	double `delta' = .										if `touse'
-				replace `delta' = (`inc'[_n]-`min')			/2 	in 1			if `touse'
-				replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 	in 2/`last'		if `touse'
-				replace `delta' = (`max'	-`inc'[_n-1])	/2 	in `bins'		if `touse'
-				replace `pg' = `pg'[_n]+`pg'[_n-1] in 2/l						if `touse'
-				gen double `inc2' = .											if `touse'
-				replace `inc2' = `inc' - `delta'				in 1/`last'		if `touse'
-				replace `inc2' = `max' - `delta'				in `bins'		if `touse'
-				sum `inc2'		[`weight'`exp']									if `touse'
+				gen 	double `delta' = .										
+				replace `delta' = (`inc'[_n]-`min')			/2 					in 1			
+				replace `delta' = (`inc'[_n]-`inc'[_n-1])	/2 					in 2/`last'		
+				replace `delta' = (`max'	-`inc'[_n-1])	/2 					in `bins'		
+				replace `pg' = `pg'[_n]+`pg'[_n-1] 								in 2/`bins'
+				gen double `inc2' = .											
+				replace `inc2' = `inc' - `delta'								in 1/`last'		
+				replace `inc2' = `max' - `delta'								in `bins'		
+				sum `inc2'		[`weight'`exp']									in 1/`bins'
 				local sumL = r(sum)
-				gen double 	`Lg' = `inc2'/`sumL'								if `touse'
-				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l						if `touse'
-				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' in 1/`bins'
+				gen double 	`Lg' = `inc2'/`sumL'								in 1/`bins'
+				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] 								in 2/`bins'				
+				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' 					if `touse'
 			}
 		}
 
@@ -731,7 +738,7 @@ quietly {
 				note("mean: `mustr' [`bins' bins]") name("pen", replace)
 		}
 
-		`noidebug' list `Lg' `L' `pg' `p'  `y1' `a' `b' `c'  `y2' `x1' `x2' if `y1' !=.
+		`noidebug' list `Lg' `L' `pg' `p'  `y1' `a' `b' `c'  `y2' `x1' `x2' if `y1' !=. & `touse'
 
 	************************************
 	** Estimation: GQ Lorenz Curve (Group data provided)
@@ -882,6 +889,9 @@ quietly {
 *-----------------------------------------------------------------------------
 * 	Mean values
 *-----------------------------------------------------------------------------
+	
+	local mmm = 0
+	
 	* allow for multiple mean values
 	foreach mu in `meanint' {
 
@@ -1240,7 +1250,7 @@ quietly {
 
 		  `noidebug' di as text "Store results"
 
-		  tempvar pline seq bin mean stdev 
+		  tempvar pline seq bin mean stdev seqpov seqmean
 
 		  local Npline = wordcount("`zl'")
 
@@ -1257,6 +1267,8 @@ quietly {
 		  cap: gen `bin'     = .
 		  cap: gen `mean'    = .
 		  cap: gen `stdev'   = .
+		  cap: gen `seqpov'    = .
+		  cap: gen `seqmean'   = .
 		  
 
 		  cap: replace `pline'   = ""
@@ -1268,6 +1280,8 @@ quietly {
 		  cap: replace `bin'     = .
 		  cap: replace `mean'    = .
 		  cap: replace `stdev'    = .
+		  cap: replace `seqpov'    = .
+		  cap: replace `seqmean'   = .
 
 		  replace `pline' = "Poverty line: `z'"
 		  replace `seq'   = `z'
@@ -1275,6 +1289,8 @@ quietly {
 		  replace `stdev'  = `sd'
 		  replace `var'   = _n in 1/32
 		  replace `bin'   = `bins'
+		  replace `seqpov'   	= `ppp'
+		  replace `seqmean'   	= `mmm'
 
 		* main results type = 1
 		   replace `type2'  = 1     in 1/8
@@ -1610,9 +1626,9 @@ quietly {
 
 		tempname tmp`pl'
 
-			mkmat  `seq' `mean' `stdev' `var' `model' `type2' `value' if `value' != . , matrix(`tmp`pl'')
+			mkmat  `seq' `seqpov'  `seqmean'  `mean' `stdev' `var' `model' `type2' `value' if `value' != . , matrix(`tmp`pl'')
 
-			matrix colnames `tmp`pl'' = povline mean sd indicator model type value
+			matrix colnames `tmp`pl'' = povline seqpov seqmean mean sd indicator model type value
 
 			mat check = `tmp`pl''
 
@@ -1682,14 +1698,18 @@ quietly {
 		}
 
 		return scalar mu        	= `mu'
+		return scalar sd			= `sd'
 		return scalar z`pl'       = `z'
 
-		local ppp = `ppp' + 1
-	  }
+		local mmm = `mmm' + 1
 
-	  return local  zlines  "`zl'"
-	  return scalar zl      = `Npline'
-	  return matrix results = `rtmp'
+	}
+
+	local ppp = `ppp' + 1
+
+	return local  zlines  "`zl'"
+	return scalar zl      = `Npline'
+	return matrix results = `rtmp'
 	  
   }
   
