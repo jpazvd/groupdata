@@ -1,5 +1,7 @@
 *-----------------------------------------------------------------------------
-*! v 2.8  28apr2020             by  JPA
+*! v 2.9 16jun2020             by  JPA
+* remove typo in line 643
+* v 2.8  28apr2020             by  JPA
 * support welfare estimations based on provided coefficients
 * add multiple mean options
 * add debug milestones
