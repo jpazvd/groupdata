@@ -66,10 +66,18 @@
 
 # csv files in selected input folders
 !qa/*.csv
+!qa/demo.do
+!qa/demo.dta
 
 # txt files in selected input folders
 !qa/*.txt
 !qa/aziz*.do
+
+# Stata package
+!/*.pkg
+!/*.do
+!/*.toc
+
 
 #######################
 # Include all the files with passwords or tokens here. All files named

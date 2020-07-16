@@ -1,0 +1,8 @@
+v 2.9
+d 'GROUPDATA': Stata module to estimate poverty and inequality measures using groupped data
+d 
+d Distribution-Date: 16 June 2020
+d License: MIT
+d 
+F src/groupdata.ado
+F src/groupdata.shlp
