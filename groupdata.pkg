@@ -14,9 +14,9 @@ d Distribution-Date: 16jun2020
 d License: MIT
 
 * Ado files
-f /src/groupdata.ado
+F src/groupdata.ado
 
 * Help files
-f /src/groupdata.sthlp
+F src/groupdata.sthlp
 
 e
