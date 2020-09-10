@@ -1,10 +1,10 @@
 {smcl}
 {hline}
 help for {cmd:groupdata}{right:Joao Pedro Azevedo}
-{right:version 2.8}
+{right:version 2.9}
 {hline}
 
-{title:{cmd:groupdata} - Group Data Estimation of Welfare Measures}
+{title:{cmd:groupdata} - Group Data Estimation of FGT0, FGT1, FGT2 and Gini}
 
 {p 8 17}
 {cmdab:groupdata}
@@ -14,6 +14,7 @@ help for {cmd:groupdata}{right:Joao Pedro Azevedo}
 [{cmd:in} {it:exp}],
 {opt z:l}{cmd:(}{it:# [# # #]}{cmd:)}
 [ 
+{opt type}{cmd:(}{it:numeric}{cmd:)}
 {opt m:ean}{cmd:(}{it:# [# # #]}{cmd:)}
 {opt bin:s}{cmd:(}{it:numeric}{cmd:)}
 {opt coefb}{cmd:(}{it:gama delta theta}{cmd:)}
@@ -42,9 +43,19 @@ help for {cmd:groupdata}{right:Joao Pedro Azevedo}
 
 {title:Where}
 
+
+
 {p 4 4 2}{p_end} 
 
 {title:Options}
+
+{p 4 4 2}{cmd:{opt type(numeric)}}{p_end}  
+
+{p 4 4 2}{cmd:{opt Type 1 grouped data}}: P=Cumulative proportion of population, L=Cumulative proportion of income held by that proportion of the population{p_end}
+{p 4 4 2}{cmd:{opt Type 2 grouped data}}: Q=Proportion of population, R=Proportion of incometype{p_end}
+{p 4 4 2}{cmd:{opt Type 5 grouped data}}: W=Percentage of the population in a given interval of incomes, X=The mean income of that interval.{p_end}
+{p 4 4 2}{cmd:{opt Type 6 grouped data}}: W=Percentage of the population in a given interval of incomes, X=The max income of that interval.{p_end}
+{p 4 4 2}{cmd:{opt Unit record data}}: Percentage of the population with same income level, The income level.{p_end}
 
 {p 4 4 2}{cmd:{opt in:dicator(string)}} poverty and inequality indicators. fgt0, fgt1, fgt2, gini, theil, and mean are the currently supported 
 options.{p_end}

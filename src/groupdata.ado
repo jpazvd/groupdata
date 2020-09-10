@@ -435,7 +435,7 @@ quietly {
 
 			if ("`nofigures'" == "") {
 
-				local mustr = strofreal(`mu',"%9.2f")
+				local mustr = strofreal("`mu'","%9.2f")
 				local intercept00 = _N + 1
 				replace `L' = 0 in `intercept00'
 				replace `p' = 0 in `intercept00'
@@ -723,7 +723,7 @@ quietly {
 	  ************************************
 
 		if ("`nofigures'" == "") {
-			local mustr = strofreal(`mu',"%9.2f")
+			local mustr = strofreal("`mu'","%9.2f")
 			local intercept00 = `bins' + 1
 			replace `L' = 0 in `intercept00'
 			replace `p' = 0 in `intercept00'
@@ -826,7 +826,7 @@ quietly {
 	************************************
 
 			if ("`nofigures'" == "") {
-				local mustr = strofreal(`mu',"%9.2f")
+				local mustr = strofreal("`mu'","%9.2f")
 				local intercept00 = `bins'+1
 				replace `Lg' = 0 in `intercept00'
 				replace `pg' = 0 in `intercept00'

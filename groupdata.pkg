@@ -1,8 +1,22 @@
 v 2.9
-d 'GROUPDATA': Stata module to estimate poverty and inequality measures using groupped data
-d 
-d Distribution-Date: 16 June 2020
+
+d GROUPDATA : Group Data Estimation of FGT0, FGT1, FGT2 and Gini
+d
+d Author: Joao Pedro Azevedo
+d Repo: https://github.com/jpazvd/groupdata
+d
+d KW: poverty
+d KW: inequality
+d KW: parameterized lorenz
+d
+d Requires: Stata version 13
+d Distribution-Date: 16jun2020 
 d License: MIT
-d 
-F src/groupdata.ado
-F src/groupdata.shlp
+
+* Ado files
+f /src/groupdata.ado
+
+* Help files
+f /src/groupdata.sthlp
+
+e

@@ -1,7 +1,11 @@
 v 2.9
+<<<<<<< HEAD
 d Materials by João Pedro Azevedo
 d World Bank
 d jazevedo@worldbank.org
 d http://www.worldbank.org/en/about/people/j/joao-pedro-azevedo
  
 p groupdata
+=======
+p groupdata : Group Data Estimation of FGT0, FGT1, FGT2 and Gini
+>>>>>>> develop
