@@ -4,7 +4,7 @@ help for {cmd:groupdata}{right:Joao Pedro Azevedo}
 {right:version 2.8}
 {hline}
 
-{title:{cmd:groupdata} - Group Data Estimation of Welfare Measures}
+{title:{cmd:groupdata} - Group Data Estimation of FGT0, FGT1, FGT2 and Gini}
 
 {p 8 17}
 {cmdab:groupdata}
