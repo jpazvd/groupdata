@@ -34,6 +34,88 @@ help for {cmd:groupdata}{right:Joao Pedro Azevedo}
 ]{p_end}
 
 
+  syntax [ varlist(numeric min=1 max=1) ]         ///
+    [in] [if]                   ///
+    [fweight aweight pweight]   ///
+      ,                         ///
+        Zl(string)            	///
+          [						///
+    			Mean(string)    ///
+				GROUPed         ///
+				BINs(real -99)  ///
+				REGress			///
+    			BENCHmark		///
+    			NOFIGures		///
+    			UNITRECord		///
+    			type(string) 	///
+    			NOElasticities	///
+    			NOLorenz		///
+    			NOChecks		///
+    			min(string)		///
+    			max(string)		///
+    			sd(real -99)	///
+				coefb(string)	///
+				coefgq(string)  ///
+    			debug			///
+				binvar(string)	///
+          ]
+
+		  
+
+*-----------------------------------------------------------------------------
+*! v 2.9 16jun2020             by  JPA
+* remove typo in line 643
+* v 2.8  28apr2020             by  JPA
+* support welfare estimations based on provided coefficients
+* add multiple mean options
+* add debug milestones
+* return matrix includes mean, sd, and povline
+* v 2.7  24apr2020             by  JPA
+* fix estiamtes using unit record data
+* estimate multiple lines
+* v 2.6  16apr2020             by  JPA groupdata
+*   added Beta and Quadratic Lorenz regression coefficient in the return list
+* v 2.5	14apr2020				by 	JPA		groupdata
+*   added the cleanversion function
+* v 2.4   	10apr2020			by JPA
+*	lnsd: fixed
+*	mz 	: multiple poverty lines
+*   mmu	: multiple mean values
+* v 2.3.1   08apr2020			by JPA
+*   add SD was an option when estimating groupped data
+*	Remove PW since it is not supported by SUMARIZE
+*   Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative
+*		proportion of income held by that proportion of the population
+*   Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype
+*   Type 5 grouped data: W=Percentage of the population in a given interval of
+*		incomes, X=The mean income of that interval.
+*   Type 6 grouped data: W=Percentage of the population in a given interval of
+*		incomes, X=The max income of that interval.
+*   Unit record data: Percentage of the population with same income level,
+*		The income level.
+*		improve the layout
+* v 2.2   06apr2020				by JPA
+*   dependencies checks run quietly
+*   apoverty and ainequal added to the dependencies check
+* v 2.1   05apr2020				by JPA
+*   changed ado name from grouppov to groupdata
+* v 2.0   02apr2020				by JPA
+*   changes made to use this method to estimate learning poverty
+* 	add support to aweight
+*   replace wtile2 by alorenz
+*   add microdata value as benchmark
+* v 1.1   14jan2014				by SM and JPA
+*   change ado name from povcal to grouppov
+*   technical note on Global Poverty Estimation: Theoratical and Empirical
+*   Validity of Parametric Lorenz Curve Estiamtes and Revisitng Non-parametric
+*   techniques. (January, 2014), for discussions on the World Bank Global
+*   Poverty Monitoring Working Group.
+* v 1.0   02fev2012				by SM and JPA
+*   povcal.ado created by Joao Pedro Azevedo (JPA) and Shabana Mitra (SM)
+*-----------------------------------------------------------------------------
+
+
+
 {p 4 4 2}{cmd:pweights}, {cmd:fweights} and {cmd:aweights} are allowed; see help weights. See help {help weight}.{p_end}
 
 
