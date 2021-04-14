@@ -1,4 +1,4 @@
-v 2.9
+v 3.0
 
 d GROUPDATA : Group Data Estimation of FGT0, FGT1, FGT2 and Gini
 d
@@ -14,9 +14,9 @@ d Distribution-Date: 16jun2020
 d License: MIT
 
 * Ado files
-f /src/groupdata.ado
+F src/groupdata.ado
 
 * Help files
-f /src/groupdata.sthlp
+F src/groupdata.sthlp
 
 e

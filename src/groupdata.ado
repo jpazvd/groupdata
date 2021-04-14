@@ -1,54 +1,8 @@
 *-----------------------------------------------------------------------------
-*! v 2.9 16jun2020             by  JPA
-* remove typo in line 643
-* v 2.8  28apr2020             by  JPA
-* support welfare estimations based on provided coefficients
-* add multiple mean options
-* add debug milestones
-* return matrix includes mean, sd, and povline
-* v 2.7  24apr2020             by  JPA
-* fix estiamtes using unit record data
-* estimate multiple lines
-* v 2.6  16apr2020             by  JPA groupdata
-*   added Beta and Quadratic Lorenz regression coefficient in the return list
-* v 2.5	14apr2020				by 	JPA		groupdata
-*   added the cleanversion function
-* v 2.4   	10apr2020			by JPA
-*	lnsd: fixed
-*	mz 	: multiple poverty lines
-*   mmu	: multiple mean values
-* v 2.3.1   08apr2020			by JPA
-*   add SD was an option when estimating groupped data
-*	Remove PW since it is not supported by SUMARIZE
-*   Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative
-*		proportion of income held by that proportion of the population
-*   Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype
-*   Type 5 grouped data: W=Percentage of the population in a given interval of
-*		incomes, X=The mean income of that interval.
-*   Type 6 grouped data: W=Percentage of the population in a given interval of
-*		incomes, X=The max income of that interval.
-*   Unit record data: Percentage of the population with same income level,
-*		The income level.
-*		improve the layout
-* v 2.2   06apr2020				by JPA
-*   dependencies checks run quietly
-*   apoverty and ainequal added to the dependencies check
-* v 2.1   05apr2020				by JPA
-*   changed ado name from grouppov to groupdata
-* v 2.0   02apr2020				by JPA
-*   changes made to use this method to estimate learning poverty
-* 	add support to aweight
-*   replace wtile2 by alorenz
-*   add microdata value as benchmark
-* v 1.1   14jan2014				by SM and JPA
-*   change ado name from povcal to grouppov
-*   technical note on Global Poverty Estimation: Theoratical and Empirical
-*   Validity of Parametric Lorenz Curve Estiamtes and Revisitng Non-parametric
-*   techniques. (January, 2014), for discussions on the World Bank Global
-*   Poverty Monitoring Working Group.
-* v 1.0   02fev2012				by SM and JPA
-*   povcal.ado created by Joao Pedro Azevedo (JPA) and Shabana Mitra (SM)
+*! v 3.0 13Apr2021             by  JPA		groupdata
+* 
 *-----------------------------------------------------------------------------
+
 
 cap program drop groupdata
 program define groupdata, rclass
@@ -79,6 +33,7 @@ program define groupdata, rclass
 				coefgq(string)  ///
     			debug			///
 				binvar(string)	///
+				multiple		///
           ]
 
 preserve
@@ -287,10 +242,10 @@ quietly {
 
 		* does not show lorenz
 		if ("`nolorenz'" != "") {
-			loc noilor ""
+			loc noilor1 ""
 		}
 		else {
-			loc noilor "noi"
+			loc noilor1 "noi"
 		}
 
 		* does not show elasticities
@@ -303,10 +258,10 @@ quietly {
 
 		* does not show checks
 		if ("`nochecks'" != "") {
-			loc nocheck ""
+			loc nocheck1 ""
 		}
 		else {
-			loc nocheck "noi"
+			loc nocheck1 "noi"
 		}
 
 		* debug
@@ -1454,18 +1409,20 @@ quietly {
 			format `pg' %16.2f
 			format `Lg' %16.3f
 
-			`noilor' di 			""
-			`noilor' di as text 	"{hline 15}    Distribution    {hline 15}"
-			`noilor' di as text 	_col(5) "i "    _col(15) "P"   _col(40) "L"
-			`noilor' di as text 	"{hline 50}"
+			`noilor1' di 			""
+			`noilor1' di as text 	"{hline 15}    Distribution    {hline 15}"
+			`noilor1' di as text 	_col(5) "i "    _col(15) "P"   _col(40) "L"
+			`noilor1' di as text 	"{hline 50}"
 
 			forvalues l = 1(1)`bins' {
 				local P = `pg' in `l'
 				local L = `Lg' in `l'
-				`noilor' di as text _col(5) "`l'"  as res  _col(15) %5.4f `P'   _col(40) %5.4f `L'
+				`noilor1' di as text _col(5) "`l'"  as res  _col(15) %5.4f `P'   _col(40) %5.4f `L'
 			}
 
-			`noilor' di as text 	"{hline 50}"
+			`noilor1' di as text 	"{hline 50}"
+
+			noi list `pg' `Lg' if `Lg' != .
 
 		}
 		
@@ -1529,7 +1486,7 @@ quietly {
 	*-----------------------------------------------------------------------------
 
 
-		`noelast' di ""
+	  `noelast' di ""
 	  `noelast' di ""
 	  `noelast' di as text "Estimated Elasticities:"
 	  `noelast' tabdisp `var' `model' `type2' if `var' != . & `type2' != 1 & `type2' != 4 & `value' != . , cell(`value')
@@ -1543,81 +1500,81 @@ quietly {
 		/* GQ Lorenz Curve */
 		***********************
 
-		`nocheck' di as text "Estimation Validity"
+		`nocheck1' di as text "Estimation Validity"
 
 
-		`nocheck' di ""
-		`nocheck' di ""
-		`nocheck' di as text "Checking for consistency of lorenz curve estimation: " as res "GQ Lorenz Curve"
+		`nocheck1' di ""
+		`nocheck1' di ""
+		`nocheck1' di as text "Checking for consistency of lorenz curve estimation: " as res "GQ Lorenz Curve"
 
 		/** Condition 1 */
 		if (`ccheck1' == 1) {
-			`nocheck' di as text "L(0;pi)=0: " as res  "OK"
+			`nocheck1' di as text "L(0;pi)=0: " as res  "OK"
 		}
 		else {
-			`nocheck' di as text "L(0;pi)=0: " as err "FAIL"
+			`nocheck1' di as text "L(0;pi)=0: " as err "FAIL"
 		}
 
 		/** Condition 2 */
 		local t = (`a'+`c')
 		if (`ccheck2' == 1) {
-			`nocheck' di as text "L(1;pi)=1: " as res "OK (value=" %9.4f `t' ")"
+			`nocheck1' di as text "L(1;pi)=1: " as res "OK (value=" %9.4f `t' ")"
 		}
 		else {
-			`nocheck' di as text "L(1;pi)=1: " as err "FAIL (value=" %9.4f `t' ")"
+			`nocheck1' di as text "L(1;pi)=1: " as err "FAIL (value=" %9.4f `t' ")"
 		}
 
 		/** Condition 3 */
 		if (`ccheck3' == 1) {
-			`nocheck' di as text "L'(0+;pi)>=0: " as res  "OK"
+			`nocheck1' di as text "L'(0+;pi)>=0: " as res  "OK"
 		}
 		else {
-			`nocheck' di as text "L'(0+;pi)>=0: " as err "FAIL"
+			`nocheck1' di as text "L'(0+;pi)>=0: " as err "FAIL"
 		}
 
 
 		/** Condition 4 */
 
 		if (`ccheck4' == 1) {
-			`nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
+			`nocheck1' di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
 		}
 		else {
-			`nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
+			`nocheck1' di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
 		}
 
 		***********************
 		/* Beta Lorenz curve */
 		***********************
 
-		`nocheck' di ""
-		`nocheck' di as text "Checking for consistency of lorenz curve estimation: " as res "Beta Lorenz curve"
+		`nocheck1' di ""
+		`nocheck1' di as text "Checking for consistency of lorenz curve estimation: " as res "Beta Lorenz curve"
 
 		/** Condition 1 */
 		* automatically satisfied by the functional form
-		`nocheck' di as text "L(0;pi)=0: " as res "OK (automatically satisfied by the functional form)"
+		`nocheck1' di as text "L(0;pi)=0: " as res "OK (automatically satisfied by the functional form)"
 
 		/** Condition 2 */
 		* automatically satisfied by the functional form
-		`nocheck' di as text "L(1;pi)=1: " as res "OK (automatically satisfied by the functional form)"
+		`nocheck1' di as text "L(1;pi)=1: " as res "OK (automatically satisfied by the functional form)"
 
 		/** Condition 3 */
 			* We check the validity of the Beta Lorenz curve
 		if (`bcheck3' == 1) {
-		  `nocheck' di as text "L'(0+;pi)>=0: " as res  "OK"
+		  `nocheck1' di as text "L'(0+;pi)>=0: " as res  "OK"
 		}
 		else {
-		  `nocheck' di as text "L'(0+;pi)>=0: " as err "FAIL "
+		  `nocheck1' di as text "L'(0+;pi)>=0: " as err "FAIL "
 			 }
 
 		/** Condition 4 */
 		if (`bcheck4'==0) {
-		  `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
+		  `nocheck1' di as text "L''(p;pi)>=0 for p within (0,1): " as res  "OK"
 		}
 		else {
-		  `nocheck' di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
+		  `nocheck1' di as text "L''(p;pi)>=0 for p within (0,1): " as err "FAIL"
 		}
-		`nocheck' di as text ""
-		`nocheck' di as text ""
+		`nocheck1' di as text ""
+		`nocheck1' di as text ""
 
 
 
@@ -1645,14 +1602,26 @@ quietly {
 
 		mat `rtmp' = nullmat(`rtmp') \ `tmp`pl''
 
-		return scalar Hgq   		  = `H'*100
-		return scalar PGgq  		  = `PG'*100
-		return scalar SPGgq 		  = `SPG'*100
-		return scalar GINIgq  		= `gini_ln'
-		return scalar Hb    		  = `hcrb'*100
-		return scalar PGb   		  = `PgBeta'*100
-		return scalar SPGb  		  = `FgtBeta'*100
-		return scalar GINIb 		  = `GiniBeta'
+		if ("`multiple'" != "") {
+			return scalar Hgq_`ppp'`mmm'	= `H'*100
+			return scalar PGgq_`ppp'`mmm'	= `PG'*100
+			return scalar SPGgq_`ppp'`mmm'	= `SPG'*100
+			return scalar GINIgq_`ppp'`mmm'	= `gini_ln'
+			return scalar Hb_`ppp'`mmm'		= `hcrb'*100
+			return scalar PGb_`ppp'`mmm'	= `PgBeta'*100
+			return scalar SPGb_`ppp'`mmm'	= `FgtBeta'*100
+			return scalar GINIb_`ppp'`mmm'	= `GiniBeta'
+		}
+
+
+		return scalar Hgq   	  = `H'*100
+		return scalar PGgq  	  = `PG'*100
+		return scalar SPGgq 	  = `SPG'*100
+		return scalar GINIgq  	  = `gini_ln'
+		return scalar Hb    	  = `hcrb'*100
+		return scalar PGb   	  = `PgBeta'*100
+		return scalar SPGb  	  = `FgtBeta'*100
+		return scalar GINIb 	  = `GiniBeta'
 		return scalar elhmu       = `elhmu'
 		return scalar elhgini     = `elhgini'
 		return scalar elpgmu      = `elpgmu'
@@ -1688,7 +1657,7 @@ quietly {
 		   return scalar delta   =   `aadelta'
 		}
 
-		if ("`nochecks'" != "") {
+		if ("`nochecks'" == "") {
 		  return scalar check1b   	= 1
 		  return scalar check2b   	= 1
 		  return scalar check3b   	= `bcheck3'
@@ -1727,7 +1696,7 @@ end
 
 ********************************************************************************
 * cleanversion ado
-*! v 1.0  4apr2020              by  JPA cleanversion
+*! v 1.0  4apr2020             by  JPA 		cleanversion
 ********************************************************************************
 
 cap: program drop cleanversion
@@ -1753,3 +1722,56 @@ program define cleanversion, rclass
     return local  result2 =	"`prefix'`sufix'"
 
 end
+
+
+*-----------------------------------------------------------------------------
+* v 2.9 16jun2020             by  JPA
+*   remove typo in line 643
+* v 2.8  28apr2020             by  JPA
+*   support welfare estimations based on provided coefficients
+*   add multiple mean options
+*   add debug milestones
+*   return matrix includes mean, sd, and povline
+* v 2.7  24apr2020             by  JPA
+*   fix estiamtes using unit record data
+*   estimate multiple lines
+* v 2.6  16apr2020             by  JPA groupdata
+*   added Beta and Quadratic Lorenz regression coefficient in the return list
+* v 2.5	14apr2020				by 	JPA		groupdata
+*   added the cleanversion function
+* v 2.4   	10apr2020			by JPA
+*	lnsd: fixed
+*	mz 	: multiple poverty lines
+*   mmu	: multiple mean values
+* v 2.3.1   08apr2020			by JPA
+*   add SD was an option when estimating groupped data
+*	Remove PW since it is not supported by SUMARIZE
+*   Type 1 grouped data: P=Cumulative proportion of population, L=Cumulative
+*		proportion of income held by that proportion of the population
+*   Type 2 grouped data: Q=Proportion of population, R=Proportion of incometype
+*   Type 5 grouped data: W=Percentage of the population in a given interval of
+*		incomes, X=The mean income of that interval.
+*   Type 6 grouped data: W=Percentage of the population in a given interval of
+*		incomes, X=The max income of that interval.
+*   Unit record data: Percentage of the population with same income level,
+*		The income level.
+*		improve the layout
+* v 2.2   06apr2020				by JPA
+*   dependencies checks run quietly
+*   apoverty and ainequal added to the dependencies check
+* v 2.1   05apr2020				by JPA
+*   changed ado name from grouppov to groupdata
+* v 2.0   02apr2020				by JPA
+*   changes made to use this method to estimate learning poverty
+* 	add support to aweight
+*   replace wtile2 by alorenz
+*   add microdata value as benchmark
+* v 1.1   14jan2014				by SM and JPA
+*   change ado name from povcal to grouppov
+*   technical note on Global Poverty Estimation: Theoratical and Empirical
+*   Validity of Parametric Lorenz Curve Estiamtes and Revisitng Non-parametric
+*   techniques. (January, 2014), for discussions on the World Bank Global
+*   Poverty Monitoring Working Group.
+* v 1.0   02fev2012				by SM and JPA
+*   povcal.ado created by Joao Pedro Azevedo (JPA) and Shabana Mitra (SM)
+*-----------------------------------------------------------------------------
