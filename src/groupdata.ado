@@ -1611,6 +1611,9 @@ quietly {
 			return scalar PGb_`ppp'`mmm'	= `PgBeta'*100
 			return scalar SPGb_`ppp'`mmm'	= `FgtBeta'*100
 			return scalar GINIb_`ppp'`mmm'	= `GiniBeta'
+			return scalar mu_`ppp'`mmm'     = `mu'
+			return scalar z`pl'_`ppp'`mmm'  = `z'
+
 		}
 
 
