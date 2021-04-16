@@ -31,6 +31,12 @@ and the mean household expenditure (or income), we can solve this equation to ge
 poverty headcount rate (H). Poverty gaps, severity of poverty, and Gini coefficients can also be calculated
 from specific equations derived from the Lorenz curves (see also Datt 1998).
 
+## References
+
+[Datt, Gaurav, 1998. "Computational Tools for Poverty Measurement and Analysis," FCND Discussion Paper 50, Washington, DC. Doi 10.22004/ag.econ.94862](10.22004/ag.econ.94862)
+
+[World Bank. Povcalnet.] (http://iresearch.worldbank.org/PovcalNet/PovCalculator.aspx)
+
 ## ADO Dependencies
 
 [Joao Pedro Azevedo, 2006. "APOVERTY: Stata module to compute poverty measures," Statistical Software Components S456750, Boston College Department of Economics, revised 13 Apr 2007.](https://ideas.repec.org/c/boc/bocode/s456750.html)
@@ -42,6 +48,8 @@ from specific equations derived from the Lorenz curves (see also Datt 1998).
 [Paul Corral & Minh Cong Nguyen & Joao Pedro Azevedo, 2018. "GROUPFUNCTION: Stata module to replace several basic collapse functions," Statistical Software Components S458475, Boston College Department of Economics.](https://ideas.repec.org/c/boc/bocode/s458475.html)
 
 [Daniel Klein, 2019. "WHICH_VERSION: Stata module to return location and programmer's version of ado-files," Statistical Software Components S4584706, Boston College Department of Economics, revised 11 Nov 2019.](https://ideas.repec.org/c/boc/bocode/s458706.html)
+
+
 
 #### Keywords: 
 Group Data; Parametrized Lorenz; Poverty Estimation; Pen's Parade; Lorenz; Generalized Lorenz
