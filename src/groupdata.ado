@@ -1,6 +1,7 @@
 *-----------------------------------------------------------------------------
-*! v 3.0 13Apr2021             by  JPA		groupdata
-* 
+*! v3.1 16Apr2021             by  JPA		groupdata
+*   fix bug on the display of the lorenz table.
+* 	debug is an undocumented option
 *-----------------------------------------------------------------------------
 
 
@@ -48,17 +49,45 @@ quietly {
 	tempvar  temp touse rnd lninc lnmpce mpce pp pw L p y1 y2 a b c  x1 x2  Lg pg yg ag bg cg yg2 x1g x2g  type2 model var value
 	
 	local skip = 0
+
+
+*-----------------------------------------------------------------------------
+* 	Filters
+*-----------------------------------------------------------------------------
+
+	tokenize `varlist'
+	local inc `1'
+	mark `touse' `if' `in' [`weight'`exp']
+	* remove missing values from estiamte
+	markout `touse'  `varlist'
+
+*-----------------------------------------------------------------------------
+* 	Data sort
+*-----------------------------------------------------------------------------
+
+	set seed 1234568
+	gen double `rnd' = uniform()		if `touse'
+	gen `lninc' 	= ln(`inc') 		if `touse'
+	gen `lnmpce' 	= ln(`inc') 		if `touse'
+	sort `inc' `rnd'
 	
-  *-----------------------------------------------------------------------------
-  * Set default values
-  *-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* Set default values
+*-----------------------------------------------------------------------------
 
   * set defaut value for the mean
   if ("`mean'" == "") {
 		local meanint "-99"
+		* generate mean and stadard deviation for unit record data
+		sum `inc' [`weight'`exp']		if `touse'
+		local mu = `r(mean)'
+		local sd = `r(sd)'
   }
   if ("`mean'" != "") {
 		local meanint "`mean'"
+		if (wordcount("`mean'") == 1) {
+			local mu = `meanint'
+		}
   }  
 
 *-----------------------------------------------------------------------------
@@ -97,7 +126,7 @@ quietly {
 	}
 	
 	* check coef option / both vectors must be specified
-	if ("`coefb'" != "") | ("`coefbgq" != "") & ("`type'" == "") & ("`grouped'" == "") {
+	if ("`coefb'" != "") | ("`coefbgq'" != "") & ("`type'" == "") & ("`grouped'" == "") {
 		if ("`coefb'" == "") {
 			noi di ""
 			di as err "Both vectors of coeficients must be specified. see help."
@@ -273,32 +302,12 @@ quietly {
 		}
 
 	*-----------------------------------------------------------------------------
-	* 	Filters
-	*-----------------------------------------------------------------------------
-
-		tokenize `varlist'
-		local inc `1'
-		mark `touse' `if' `in' [`weight'`exp']
-		* remove missing values from estiamte
-		markout `touse'  `varlist'
-
-	*-----------------------------------------------------------------------------
-	* 	Data sort
-	*-----------------------------------------------------------------------------
-
-		set seed 1234568
-	  gen double `rnd' = uniform()		if `touse'
-	  gen `lninc' 	= ln(`inc') 			if `touse'
-		gen `lnmpce' 	= ln(`inc') 			if `touse'
-	  sort `inc' `rnd'
-
-	*-----------------------------------------------------------------------------
 	* 	Unit Record estimations used to benchmark results
 	*-----------------------------------------------------------------------------
 
 	  `noidebug' di as text "Unit Record estimations used to benchmark results"
 
-		qui if ("`benchmark'" == "benchmark") {
+	qui if ("`benchmark'" == "benchmark") {
 		* create  counter
 		local ppp = 0
 		if ("`noidebug'"==""){
@@ -338,8 +347,8 @@ quietly {
 	*			`noidebug' dis as error "AQUI"
 			}		
 		}
-		
-		}
+
+	}
 
 	*-----------------------------------------------------------------------------
 	* 	Unit Record
@@ -348,10 +357,10 @@ quietly {
 	  if ("`unitrecord'" == "unitrecord") {
 
 		`noidebug' di as text "Unit Record estimations"
-			noi di ""
-			noi di ""
-			noi di "Estimation using unit record information."
-
+		noi di ""
+		noi di ""
+		noi di "Estimation using unit record information."
+		
 		************************************
 		** cumulative distribution
 		************************************
@@ -384,29 +393,9 @@ quietly {
 
 		local last = _N-1
 
-	  ************************************
-		** Plot Figure
-	  ************************************
+		`noidebug' sum `L' `p'  `y1' `a' `b' `c'  `y2' `x1' `x2' if `y1' !=. & `touse'
+		`noidebug' list `L' `p'  `y1' `a' `b' `c'  `y2' `x1' `x2' if `y1' !=. & `touse'
 
-			if ("`nofigures'" == "") {
-
-				local mustr = strofreal("`mu'","%9.2f")
-				local intercept00 = _N + 1
-				replace `L' = 0 in `intercept00'
-				replace `p' = 0 in `intercept00'
-
-				graph twoway lowess `L' `p'		if `touse', 						///
-					ytitle("Lorenz") xtitle("Population (Cumulative)") 				///
-					note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
-
-				kdensity `inc' 					if `touse', 						///
-					xline(`z') xtitle("`inc'") name(pdf, replace)
-
-				graph twoway lowess `inc' `p'	if `touse', 						///
-					yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
-					note("mean: `mustr' [`bins' bins]") name("pen", replace)
-
-			}
 
 		************************************
 		** Estimation: GQ Lorenz Curve
@@ -418,7 +407,7 @@ quietly {
 			label var `b' 	"B"
 			label var `c'	"C"
 
-		qui reg `y1' `a' `b' `c' in 1/`last' if `touse', noconstant
+		`noidebug'  reg `y1' `a' `b' `c' in 1/`last' if `touse', noconstant
 		est store coefgq
 		mat `gq' = e(b)
 		mat `cof' = e(b)
@@ -433,7 +422,7 @@ quietly {
 			label var `x1'	"B"
 			label var `x2'	"C"
 
-		qui reg `y2' `x1' `x2' in 1/`last' if `touse'
+		`noidebug'  reg `y2' `x1' `x2' in 1/`last' if `touse'
 		est store coefbeta
 		mat `cofb' = e(b)
 
@@ -526,8 +515,8 @@ quietly {
 				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] 				in 2/`bins'
 				
 				`noidebug' di as text `"("`wtg2'" == "")"'
-				`noidebug' list  `ccc' `binvar' `pg' `inc' `Lg' `LLLLL' `PPPPP' `touse' if `touse'
-				`noidebug' sum  `ccc' `binvar' `pg' `inc' `Lg' `LLLLL' `PPPPP' `touse'  if `touse'
+				`noidebug' list  `ccc' `binvar' `pg' `inc' `Lg' `LLLLL' `PPPPP' `touse' if `pg' != .
+				`noidebug' sum  `ccc' `binvar' `pg' `inc' `Lg' `LLLLL' `PPPPP' `touse'  if `pg' != .
 			}
 
 			if (substr(trim("`wtg2'"),1,2) == "pw") {
@@ -541,7 +530,7 @@ quietly {
 				replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] in 2/`bins'
 				gen double `Lg' = `LLLLL'
 				`noidebug' di as text `"(substr(trim("`wtg2'"),1,2) == "pw")"'
-				`noidebug' list  `ccc' `binvar' `pg' `inc' `Lg' `LLLLL' `PPPPP' `touse' if `touse'
+				`noidebug' list  `ccc' `binvar' `pg' `inc' `Lg' `LLLLL' `PPPPP' `touse' if `pg' != .
 			}
 
 
@@ -554,8 +543,11 @@ quietly {
 				local sumL = r(sum)
 				gen doulbe 	`Lg' = `inc'/`sumL'				in 1/`bins'
 				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l	in 2/`bins'
+				
+				`noidebug' di as text "Type 5 grouped data"
 				`noidebug' di as text `"(substr(trim("`wtg2'"),1,2) == "fw")"'
-				`noidebug' list  `ccc' `binvar' `pg' `inc' `Lg' `LLLLL' `PPPPP' `touse' if `touse'
+				`noidebug' list  `ccc' `binvar' `pg' `inc' `Lg' `LLLLL' `PPPPP' `touse' if `pg' != .
+				`noidebug' di ""
 			}
 		}
 
@@ -590,7 +582,10 @@ quietly {
 				local sumL = r(sum)
 				gen double 	`Lg' = `inc2'/`sumL'								in 1/`bins'
 				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] in 2/l						in 2/`bins'
-				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' 					if `touse'
+				
+				`noidebug' di as text "Type 6 grouped data: wtg2 == null"
+				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' 					if `pg' != .
+				`noidebug' di ""
 			}
 
 			if (substr(trim("`wtg2'"),1,2) == "pw") {
@@ -610,7 +605,10 @@ quietly {
 				gen double 	`LLLLL' = `PPPPP'/`sumL'							in 1/`bins'
 				replace 	`LLLLL' = `LLLLL'[_n]+`LLLLL'[_n-1] 				in 2/`bins'
 				gen double `Lg' = `LLLLL'										in 1/`bins'
-				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' 					if `touse'
+				
+				`noidebug' di as text "Type 6 grouped data: wtg2 == pw"
+				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' 					if `pg' != .
+				`noidebug' di ""
 			}
 
 			if (substr(trim("`wtg2'"),1,2) == "fw") {
@@ -630,7 +628,10 @@ quietly {
 				local sumL = r(sum)
 				gen double 	`Lg' = `inc2'/`sumL'								in 1/`bins'
 				replace `Lg' = `Lg'[_n]+`Lg'[_n-1] 								in 2/`bins'				
-				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' 					if `touse'
+
+				`noidebug' di as text "Type 6 grouped data: wtg2 == fw"
+				`noidebug' list `pg' `inc' `delta' `inc2' `Lg' 					if `pg' != .
+				`noidebug' di ""
 			}
 		}
 
@@ -638,6 +639,7 @@ quietly {
 	  ** Generate the cumulative distribution
 	  ************************************
 
+		sort `pg'
 		sum `pg'
 		local s = r(sum)
 		if (`s'>99) {
@@ -654,6 +656,36 @@ quietly {
 		}
 		else {
 			gen double `L' = `Lg'
+		}
+
+	  ************************************
+		** Plot Figures 1
+	  ************************************
+
+		if ("`nofigures'" == "") {
+
+			local mustr = strofreal(`mu',"%9.2f")
+			local intercept00 = _N + 1
+			replace `L' = 0 in `intercept00'
+			replace `p' = 0 in `intercept00'
+
+			graph twoway lowess `L' `p'		if `touse', 						///
+				ytitle("Lorenz") xtitle("Population (Cumulative)") 				///
+				note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
+
+			kdensity `inc' 					if `touse', 						///
+				xline(`z') xtitle("`inc'") name(pdf, replace)
+
+			graph twoway lowess `inc' `p'	if `touse', 						///
+				yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
+				note("mean: `mustr' [`bins' bins]") name("pen", replace)
+				
+			`noidebug' di as text "Plot figure 1"
+			`noidebug' sum  `L' `p' 	if `p' !=. 
+			`noidebug' list `L' `p' 	if `p' !=. 
+			`noidebug' list `L' `p' 	if `p' !=. 
+			`noidebug' di ""
+
 		}
 
 	  ************************************
@@ -674,16 +706,17 @@ quietly {
 		gen double `x2'=ln(1-`p')
 
 	  ************************************
-		** Plot Figure
+		** Plot Figures 2
 	  ************************************
 
 		if ("`nofigures'" == "") {
-			local mustr = strofreal("`mu'","%9.2f")
+
+			local mustr = strofreal(`mu',"%9.2f")
 			local intercept00 = `bins' + 1
 			replace `L' = 0 in `intercept00'
 			replace `p' = 0 in `intercept00'
-		  * figure 1 - Lorenz
-		  graph twoway lowess `L' `p'		, 						///
+			* figure 1 - Lorenz
+			graph twoway lowess `L' `p'		, 						///
 				ytitle("Lorenz") xtitle("Population (Cumulative)") 				///
 				note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
 			* figure 2 - PDF
@@ -693,9 +726,15 @@ quietly {
 			graph twoway lowess `inc' `p'	, 						///
 				yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
 				note("mean: `mustr' [`bins' bins]") name("pen", replace)
-		}
 
-		`noidebug' list `Lg' `L' `pg' `p'  `y1' `a' `b' `c'  `y2' `x1' `x2' if `y1' !=. & `touse'
+			`noidebug' di as text "Plot figures 2"
+			`noidebug' sum  `L' `p' 	if `p' !=. 
+			`noidebug' list `L' `p' 	if `p' !=. 
+			`noidebug' list `L' `p'  	if `p' !=. 
+			`noidebug' list `Lg' `L' `pg' `p'  `y1' `a' `b' `c'  `y2' `x1' `x2' if `y1' !=. & `p' !=. 
+			`noidebug' di ""
+
+		}
 
 	************************************
 	** Estimation: GQ Lorenz Curve (Group data provided)
@@ -731,7 +770,7 @@ quietly {
 
 	*-----------------------------------------------------------------------------
 	* Unite Records is provided
-	* Group data is estimated by Groupdata ado
+	* Group data is estimated by alorenz.ado
 	*-----------------------------------------------------------------------------
 
 	  qui if ("`grouped'" == "grouped") {
@@ -755,6 +794,7 @@ quietly {
 				alorenz `inc' [`weight'`exp']	if `touse', points(`bins')
 			}
 		}
+		
 		* extract return matrix
 			mat `A' = r(lorenz1)
 		* export return matrix to dataset
@@ -762,7 +802,7 @@ quietly {
 		* generate return matrix of dataset
 			return matrix data = `A'
 
-	  ** generate variables (GQ Lorenz Curve) (grouped data)
+	    ** generate variables (GQ Lorenz Curve) (grouped data)
 		gen double `Lg' = `A'2/100
 		gen double `pg' = `A'4/100
 		gen double `yg' = `Lg'*(1-`Lg')
@@ -776,27 +816,44 @@ quietly {
 		gen double `x2g' = ln(1-`pg')
 		local lastg = `bins'-1
 
+		`noidebug' di as text "Display groupdata produced by alorenez.ado"
+		`noidebug' mat list r(lorenz1)
+		`noidebug' sum  `A'2 `A'4 `Lg' `pg' `yg' `ag' `bg' `cg' `yg2' `x1g' `x2g' `touse'  if `pg' != .
+		`noidebug' list `A'2 `A'4 `Lg' `pg' `yg' `ag' `bg' `cg' `yg2' `x1g' `x2g' `touse'  if `pg' != .
+		`noidebug' di as text ""
+		
 	************************************
-	** Plot Figure
+	** Plot Figure 3
 	************************************
 
-			if ("`nofigures'" == "") {
-				local mustr = strofreal("`mu'","%9.2f")
-				local intercept00 = `bins'+1
-				replace `Lg' = 0 in `intercept00'
-				replace `pg' = 0 in `intercept00'
-		  * Figure 1 - Lorenz
-				graph twoway lowess `Lg' `pg', 										            ///
-					ytitle("Lorenz") xtitle("Population (Cumulative)") 		      ///
-					note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
-		  * Figure 2 - PDF
-				kdensity `A'6, 														                    ///
-					xline(`z') xtitle("`inc'") name(pdf, replace)
-		  * Figure 3 - Pen's Parade
-				graph twoway lowess `A'3 `pg', 										              ///
-					yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
-					note("mean: `mustr' [`bins' bins]") name("pen", replace)
-			}
+		if ("`nofigures'" == "") {
+
+			local mustr = strofreal(`mu',"%9.2f")
+			local intercept00 = `bins'+1
+			
+			replace `Lg' = 0 in `intercept00'
+			replace `pg' = 0 in `intercept00'
+			
+			* Figure 1 - Lorenz
+			graph twoway lowess `Lg' `pg', 									///
+				ytitle("Lorenz") xtitle("Population (Cumulative)") 		    ///
+				note("mean: `mustr' [`bins' bins]") name(lorenz, replace)
+			* Figure 2 - PDF
+			kdensity `A'6, 										       		///
+				xline(`z') xtitle("`inc'") name(pdf, replace)
+			* Figure 3 - Pen's Parade
+			graph twoway lowess `A'3 `pg', 							    		///
+				yline(`z') ytitle("`inc'") xtitle("Population (Cumulative)") 	///
+				note("mean: `mustr' [`bins' bins]") name("pen", replace)
+
+			`noidebug' di as text "Plot figure 3"
+			`noidebug' sum  `Lg' `pg'  	if `pg' != .
+			`noidebug' list `Lg' `pg' 	if `pg' != .
+			`noidebug' di as text ""
+
+		}
+
+
 
 	  ************************************
 	  ** Estimation: GQ Lorenz Curve (grouped data)
@@ -804,10 +861,10 @@ quietly {
 
 		`noidebug' di as text "Group data constructed: GQ Lorenz Curve"
 
-			label variable `yg'   "`inc'"
-			label variable `ag'		"A"
-			label variable `bg' 	"B"
-			label variable `cg' 	"C"
+		label variable `yg'   "`inc'"
+		label variable `ag'		"A"
+		label variable `bg' 	"B"
+		label variable `cg' 	"C"
 
 		qui reg `yg' `ag' `bg' `cg' in 1/`lastg', noconstant
 		est store coefgqg
@@ -819,9 +876,9 @@ quietly {
 
 		`noidebug' di as text "Group data constructed: Beta Lorenz Curve "
 
-			label variable `yg2' 	"`inc'"
-			label variable `x1g'  "B"
-			label variable `x2g'	"C"
+		label variable `yg2' 	"`inc'"
+		label variable `x1g'    "B"
+		label variable `x2g'	"C"
 
 		qui reg `yg2' `x1g' `x2g'  in 1/`lastg'
 		est store coefbetag
@@ -868,7 +925,7 @@ quietly {
 		  }
 		  if (`mu') != -99 {
 			* use the mean provided as an option
-			  sum `lnmpce' [`weight2'`exp']		if `touse'
+			 sum `lnmpce' [`weight2'`exp']		if `touse'
 			local lnmu = ln(`mu')
 			local sd   = r(sd)
 			local lnsd = ln(`sd')
@@ -894,7 +951,7 @@ quietly {
 			
 		if (`skip' != 1) {
 			*keep only group data
-			keep if `touse'
+			keep if `pg' != .
 		}
 
 		 * increase the number of rows to match what is required by
@@ -904,9 +961,11 @@ quietly {
 			set obs 32
 		}
 	
-	di "`mu'"
-	di "`lnmu'"
-	
+	`noidebug' di as text "Display mean valudes computed"
+	`noidebug' di as text "mean: `mu'"
+	`noidebug' di as text "lnmu: `lnmu'"
+	`noidebug' di as text ""
+
 	
 	*-----------------------------------------------------------------------------
 	* 	Table 2 (Datt, 1998)
@@ -1171,7 +1230,7 @@ quietly {
 		* automatically satisfied by the functional form
 		*`nocheck' di as text "L(1;pi)=1: " as res "OK (automatically satisfied by the functional form)"
 
-		/** Condition 3 : "L'(0+;pi)>=0 */
+		/** Condition 3 : L'(0+;pi)>=0 */
 		  * We check the validity of the Beta Lorenz curve
 		local check1 = 1- `aatheta'*.001^`aagama'*.999^`aadelta'*(`aagama'/.001-`aadelta'/.999)
 		if (`check1'>=0)  {
@@ -1399,7 +1458,9 @@ quietly {
 	* Display Lorenz
 	*-----------------------------------------------------------------------------
 		
-		`noidebug' di as text "Display results"
+		`noidebug' di as text "Display Results"
+
+		`noidebug' di as text "Display Lorenz"
 
 		if (`skip' != 1) {
 			
@@ -1413,16 +1474,28 @@ quietly {
 			`noilor1' di as text 	"{hline 15}    Distribution    {hline 15}"
 			`noilor1' di as text 	_col(5) "i "    _col(15) "P"   _col(40) "L"
 			`noilor1' di as text 	"{hline 50}"
-
-			forvalues l = 1(1)`bins' {
+			
+			* sort database by the cumulative probability
+			sort `pg'
+			
+			* select only the number of observations in which value is different
+			* from missing
+			sum `pg'
+			local binstrim = r(N) 
+			
+			forvalues l = 1(1)`binstrim' {
 				local P = `pg' in `l'
 				local L = `Lg' in `l'
 				`noilor1' di as text _col(5) "`l'"  as res  _col(15) %5.4f `P'   _col(40) %5.4f `L'
 			}
-
+			
 			`noilor1' di as text 	"{hline 50}"
+			if (`bins'!=`binstrim') {
+				noi di as res "Note: Intercept [0,0] added. " 
+			}
 
-			noi list `pg' `Lg' if `Lg' != .
+			`noidebug' sum  `pg' `Lg' 
+			`noidebug' list `pg' `Lg' if `pg' != .
 
 		}
 		
@@ -1432,19 +1505,20 @@ quietly {
 
 	if (`skip' != 1) {
 		
+		`noidebug' di as text "Display Regression"
 	
 		if ("`grouped'" == "grouped") {
 
-		`noireg' di ""
 			`noireg' di ""
-		`noireg' di as text "Estimation: " as res "GQ Lorenz Curve (grouped data)"
-		`noireg' estout  coefgqg, cells("b(star fmt(%9.3f)) se t p")                ///
+			`noireg' di ""
+			`noireg' di as text "Estimation: " as res "GQ Lorenz Curve (grouped data)"
+			`noireg' estout  coefgqg, cells("b(star fmt(%9.3f)) se t p")                ///
 				  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared"))      ///
 				  legend label
 
 			`noireg' di ""
-		`noireg' di ""
-		`noireg' di as text "Estimation: " as res "Beta Lorenz Curve (Grouped data)"
+			`noireg' di ""
+			`noireg' di as text "Estimation: " as res "Beta Lorenz Curve (Grouped data)"
 			`noireg' estout coefbetag, cells("b(star fmt(%9.3f)) se t p")                ///
 				  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared" F-sta RMSE MSS RSS Obs))      ///
 				  legend label  varlabels(_cons A)
@@ -1454,15 +1528,15 @@ quietly {
 		if ("`grouped'" == "") {
 
 			`noireg' di ""
-		`noireg' di ""
-		`noireg' di as text "Estimation: " as res "GQ Lorenz Curve"
+			`noireg' di ""
+			`noireg' di as text "Estimation: " as res "GQ Lorenz Curve"
 			`noireg' estout  coefgq, cells("b(star fmt(%9.3f)) se t p")                ///
 				  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared" F-sta RMSE MSS RSS Obs))      ///
 				  legend label
 
 			`noireg' di ""
-		`noireg' di ""
-		`noireg' di as text "Estimation: " as res "Beta Lorenz Curve"
+			`noireg' di ""
+			`noireg' di as text "Estimation: " as res "Beta Lorenz Curve"
 			`noireg' estout coefbeta, cells("b(star fmt(%9.3f)) se t p")                ///
 				  stats(r2_a F rmse mss rss N, fmt(%9.3f %9.0g) labels("Adj. R-squared" F-sta RMSE MSS RSS Obs))      ///
 				  legend label  varlabels(_cons A)
@@ -1728,6 +1802,10 @@ end
 
 
 *-----------------------------------------------------------------------------
+* v3.0 13Apr2021             by  JPA		groupdata
+*    add multiple option: multiple estimates are now stored as scalars
+*    fix bugs on the reporting on elasticities
+*    improve the help file 
 * v 2.9 16jun2020             by  JPA
 *   remove typo in line 643
 * v 2.8  28apr2020             by  JPA
