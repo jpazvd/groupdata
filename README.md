@@ -1,7 +1,7 @@
 # GROUPDATA: Stata module for poverty and inequality estimations using grouped data
  
 Poverty rates at an international poverty line were originally estimated by first fitting a parametric Lorenz curve
-to the grouped data and then using the functional relationship between the slope of the Lorenz curve and mean income to identify the headcount rate of poverty. The following relation when evaluated at the point representing the
+to the grouped data and then using the functional relationship between the slope of the Lorenz curve and mean income to identify the headcount rate of poverty (World Bank 2021). The following relation when evaluated at the point representing the
 proportion of the poor in the population, the slope is equal to the ratio of the international poverty line to
 mean household expenditure (or income) per capita (see equation 1).
 
@@ -33,9 +33,9 @@ from specific equations derived from the Lorenz curves (see also Datt 1998).
 
 ## References
 
-[Datt, Gaurav, 1998. "Computational Tools for Poverty Measurement and Analysis," FCND Discussion Paper 50, Washington, DC. Doi 10.22004/ag.econ.94862](10.22004/ag.econ.94862)
+[Datt, Gaurav, 1998. "Computational Tools for Poverty Measurement and Analysis," FCND Discussion Paper 50, Washington, DC. Doi 10.22004/ag.econ.94862](https://ageconsearch.umn.edu/record/94862)
 
-[World Bank. Povcalnet.] (http://iresearch.worldbank.org/PovcalNet/PovCalculator.aspx)
+[World Bank. 2021. Povcalnet.](http://iresearch.worldbank.org/PovcalNet/PovCalculator.aspx)
 
 ## ADO Dependencies
 
