@@ -1672,9 +1672,7 @@ quietly {
 			mkmat  `seq' `seqpov'  `seqmean'  `mean' `stdev' `var' `model' `type2' `value' if `value' != . , matrix(`tmp`pl'')
 
 			matrix colnames `tmp`pl'' = povline seqpov seqmean mean sd indicator model type value
-
-			mat check = `tmp`pl''
-
+		
 		matrix rownames `tmp`pl'' = H  PG  SPG  gini_ln  hcrb  PgBeta	 FgtBeta	 GiniBeta   ///
 		  elhmu	  elhgini 	elpgmu	 elpggini	 elspgmu	 elspggini	 elhmub	                ///
 		  elhginib	 elpgmub	 elpgginib	 elspgmub	 elspgginib                             ///
@@ -1683,31 +1681,33 @@ quietly {
 		  check1b check2b check2b check2b
 
 
+			mat check = `tmp`pl''
+
+	        mat check`pl' = `tmp`pl''
+
 		mat `rtmp' = nullmat(`rtmp') \ `tmp`pl''
 
 		if ("`multiple'" != "") {
-			return scalar Hgq_`ppp'`mmm'	= `H'*100
+			return scalar Hgq_`ppp'`mmm'		= `H'*100
 			return scalar PGgq_`ppp'`mmm'	= `PG'*100
 			return scalar SPGgq_`ppp'`mmm'	= `SPG'*100
 			return scalar GINIgq_`ppp'`mmm'	= `gini_ln'
 			return scalar Hb_`ppp'`mmm'		= `hcrb'*100
-			return scalar PGb_`ppp'`mmm'	= `PgBeta'*100
+			return scalar PGb_`ppp'`mmm'		= `PgBeta'*100
 			return scalar SPGb_`ppp'`mmm'	= `FgtBeta'*100
 			return scalar GINIb_`ppp'`mmm'	= `GiniBeta'
 			return scalar mu_`ppp'`mmm'     = `mu'
 			return scalar z`pl'_`ppp'`mmm'  = `z'
-
 		}
 
-
-		return scalar Hgq   	  = `H'*100
-		return scalar PGgq  	  = `PG'*100
-		return scalar SPGgq 	  = `SPG'*100
-		return scalar GINIgq  	  = `gini_ln'
-		return scalar Hb    	  = `hcrb'*100
-		return scalar PGb   	  = `PgBeta'*100
-		return scalar SPGb  	  = `FgtBeta'*100
-		return scalar GINIb 	  = `GiniBeta'
+		return scalar Hgq   	  	= `H'*100
+		return scalar PGgq  	  	= `PG'*100
+		return scalar SPGgq 	  	= `SPG'*100
+		return scalar GINIgq  	= `gini_ln'
+		return scalar Hb    	= `hcrb'*100
+		return scalar PGb   	  	= `PgBeta'*100
+		return scalar SPGb  	 	 = `FgtBeta'*100
+		return scalar GINIb 	 	 = `GiniBeta'
 		return scalar elhmu       = `elhmu'
 		return scalar elhgini     = `elhgini'
 		return scalar elpgmu      = `elpgmu'
@@ -1757,24 +1757,29 @@ quietly {
 
 		return scalar mu        	= `mu'
 		return scalar sd			= `sd'
-		return scalar z`pl'       = `z'
+		return scalar z`pl'         = `z'
 
+	    return matrix results_`ppp'`mmm'  = `rtmp'
+		 
 		local mmm = `mmm' + 1
 
+    * close multiple means		
 	}
 
 	local ppp = `ppp' + 1
 
-	return local  zlines  "`zl'"
-	return scalar zl      = `Npline'
-	return matrix results = `rtmp'
-	  
+  * close multiple poverty lines		
   }
-  
-  restore
 
-  return add
+   return local  zlines  "`zl'"
+   return scalar zl      = `Npline'
+   return matrix results  = `rtmp'
 
+   return add
+
+ restore
+
+ 
  }
 
 end
