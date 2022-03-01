@@ -1,7 +1,8 @@
 *-----------------------------------------------------------------------------
-*! v3.1 16Apr2021             by  JPA		groupdata
-*   fix bug on the display of the lorenz table.
-* 	debug is an undocumented option
+*! v3.2 01Mar2022             by  JPA		groupdata
+*   add check for when the grouped data option is enabled. 
+*   clarify help file, to ensure it is clear that grouped option should only be 
+*   used when unit records is provided.
 *-----------------------------------------------------------------------------
 
 
@@ -106,6 +107,11 @@ quietly {
     di as err "Estimates based on group data require the user to provide the mean value of the distribution"
     exit 198
 		noi di ""
+	}
+	if (strmatch(" 1 2 5 6","*`type'*") == 1) & ("`grouped'" == "") {
+		noi di ""
+		di as err "Type option can only be used when grouped data is provided. Can not specify it with grouped option."
+		exit 198
 	}
 	if (strmatch(" 1 2 5 6","*`type'*") == 1) & ("`binvar'" == "") & ("`grouped'" == "") & (("`coefgq'" == "")  | ("`coefb'" == ""))  {
 		noi di ""
@@ -351,7 +357,7 @@ quietly {
 	}
 
 	*-----------------------------------------------------------------------------
-	* 	Unit Record
+	* 	Estimate results using unit record
 	*-----------------------------------------------------------------------------
 
 	  if ("`unitrecord'" == "unitrecord") {
@@ -434,6 +440,9 @@ quietly {
 	*-----------------------------------------------------------------------------
 
 	  qui if ("`type'" != "") {
+	  
+		noi di ""
+		noi di "Grouped data provided..."
 
 		`noidebug' di as text "Group Data : Type `type'"
 
@@ -772,10 +781,10 @@ quietly {
 	* Unite Records is provided
 	* Group data is estimated by alorenz.ado
 	*-----------------------------------------------------------------------------
-
+	
 	  qui if ("`grouped'" == "grouped") {
 			noi di ""
-			noi di "Estimation using grouped data..."
+			noi di "Estimation using unit records, grouped data generated on the fly..."
 
 		** cumulative distribution (grouped data)
 		if (`bins'!= 0) {
@@ -1802,6 +1811,9 @@ end
 
 
 *-----------------------------------------------------------------------------
+* v3.1 16Apr2021             by  JPA		groupdata
+*   fix bug on the display of the lorenz table.
+* 	debug is an undocumented option
 * v3.0 13Apr2021             by  JPA		groupdata
 *    add multiple option: multiple estimates are now stored as scalars
 *    fix bugs on the reporting on elasticities

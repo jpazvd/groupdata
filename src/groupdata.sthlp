@@ -78,7 +78,7 @@ fourth conditions ensure that the Lorenz curve is monotonically increasing and c
 
 {p 4 4 2}{opt max}{cmd:(}{it:value}{cmd:)} Maximum value of the distribution.{p_end}
 
-{p 4 4 2}{opt group:ed} Estimates using groupped  data.{p_end}
+{p 4 4 2}{opt group:ed} Select this option when groupped data must be computed on the fly. It should only be used when using unit records.{p_end}
 
 {p 4 4 2}{opt reg:ress} Distplay regression table.{p_end}
 
