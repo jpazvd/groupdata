@@ -1,7 +1,8 @@
 *-----------------------------------------------------------------------------
-*! v3.1 16Apr2021             by  JPA		groupdata
-*   fix bug on the display of the lorenz table.
-* 	debug is an undocumented option
+*! v3.2 01Mar2022             by  JPA		groupdata
+*   add check for when the grouped data option is enabled. 
+*   clarify help file, to ensure it is clear that grouped option should only be 
+*   used when unit records is provided.
 *-----------------------------------------------------------------------------
 
 
@@ -106,6 +107,11 @@ quietly {
     di as err "Estimates based on group data require the user to provide the mean value of the distribution"
     exit 198
 		noi di ""
+	}
+	if (strmatch(" 1 2 5 6","*`type'*") == 1) & ("`grouped'" == "") {
+		noi di ""
+		di as err "Type option can only be used when grouped data is provided. Can not specify it with grouped option."
+		exit 198
 	}
 	if (strmatch(" 1 2 5 6","*`type'*") == 1) & ("`binvar'" == "") & ("`grouped'" == "") & (("`coefgq'" == "")  | ("`coefb'" == ""))  {
 		noi di ""
@@ -351,7 +357,7 @@ quietly {
 	}
 
 	*-----------------------------------------------------------------------------
-	* 	Unit Record
+	* 	Estimate results using unit record
 	*-----------------------------------------------------------------------------
 
 	  if ("`unitrecord'" == "unitrecord") {
@@ -434,6 +440,9 @@ quietly {
 	*-----------------------------------------------------------------------------
 
 	  qui if ("`type'" != "") {
+	  
+		noi di ""
+		noi di "Grouped data provided..."
 
 		`noidebug' di as text "Group Data : Type `type'"
 
@@ -772,10 +781,10 @@ quietly {
 	* Unite Records is provided
 	* Group data is estimated by alorenz.ado
 	*-----------------------------------------------------------------------------
-
+	
 	  qui if ("`grouped'" == "grouped") {
 			noi di ""
-			noi di "Estimation using grouped data..."
+			noi di "Estimation using unit records, grouped data generated on the fly..."
 
 		** cumulative distribution (grouped data)
 		if (`bins'!= 0) {
@@ -1054,7 +1063,7 @@ quietly {
 			local dis15 = normal(`tem6')
 		}
 
-		/*** Elasticities QG Lorenz */
+		/*** Elasticities GQ Lorenz */
 		local elhmu         = -(`z'/(`mu'*`H'*`ldph'))
 		local elhgini       = (1-(`z'/`mu'))/ (`H'*`ldph')
 		local elpgmu        = 1-(`H'/`PG')
@@ -1433,7 +1442,7 @@ quietly {
 		  label define var 8  "L''(p;pi)>=0 for p within (0,1)" , add modify
 
 		  label define model 0 "Unit Record"                    , add modify
-		  label define model 1 "QG Lorenz Curve"                , add modify
+		  label define model 1 "GQ Lorenz Curve"                , add modify
 		  label define model 2 "Beta Lorenz Curve"              , add modify
 
 		  label define type 1 "Estimated Value"                 , add modify
@@ -1663,42 +1672,42 @@ quietly {
 			mkmat  `seq' `seqpov'  `seqmean'  `mean' `stdev' `var' `model' `type2' `value' if `value' != . , matrix(`tmp`pl'')
 
 			matrix colnames `tmp`pl'' = povline seqpov seqmean mean sd indicator model type value
-
-			mat check = `tmp`pl''
-
+		
 		matrix rownames `tmp`pl'' = H  PG  SPG  gini_ln  hcrb  PgBeta	 FgtBeta	 GiniBeta   ///
 		  elhmu	  elhgini 	elpgmu	 elpggini	 elspgmu	 elspggini	 elhmub	                ///
 		  elhginib	 elpgmub	 elpgginib	 elspgmub	 elspgginib                             ///
 		  `rownames_unitrecord'                                                             ///
-		  check1qg check2qg check2qg check2qg                                               ///
+		  check1gq check2gq check2gq check2gq                                               ///
 		  check1b check2b check2b check2b
 
+
+			mat check = `tmp`pl''
+
+	        mat check`pl' = `tmp`pl''
 
 		mat `rtmp' = nullmat(`rtmp') \ `tmp`pl''
 
 		if ("`multiple'" != "") {
-			return scalar Hgq_`ppp'`mmm'	= `H'*100
+			return scalar Hgq_`ppp'`mmm'		= `H'*100
 			return scalar PGgq_`ppp'`mmm'	= `PG'*100
 			return scalar SPGgq_`ppp'`mmm'	= `SPG'*100
 			return scalar GINIgq_`ppp'`mmm'	= `gini_ln'
 			return scalar Hb_`ppp'`mmm'		= `hcrb'*100
-			return scalar PGb_`ppp'`mmm'	= `PgBeta'*100
+			return scalar PGb_`ppp'`mmm'		= `PgBeta'*100
 			return scalar SPGb_`ppp'`mmm'	= `FgtBeta'*100
 			return scalar GINIb_`ppp'`mmm'	= `GiniBeta'
 			return scalar mu_`ppp'`mmm'     = `mu'
 			return scalar z`pl'_`ppp'`mmm'  = `z'
-
 		}
 
-
-		return scalar Hgq   	  = `H'*100
-		return scalar PGgq  	  = `PG'*100
-		return scalar SPGgq 	  = `SPG'*100
-		return scalar GINIgq  	  = `gini_ln'
-		return scalar Hb    	  = `hcrb'*100
-		return scalar PGb   	  = `PgBeta'*100
-		return scalar SPGb  	  = `FgtBeta'*100
-		return scalar GINIb 	  = `GiniBeta'
+		return scalar Hgq   	  	= `H'*100
+		return scalar PGgq  	  	= `PG'*100
+		return scalar SPGgq 	  	= `SPG'*100
+		return scalar GINIgq  	= `gini_ln'
+		return scalar Hb    	= `hcrb'*100
+		return scalar PGb   	  	= `PgBeta'*100
+		return scalar SPGb  	 	 = `FgtBeta'*100
+		return scalar GINIb 	 	 = `GiniBeta'
 		return scalar elhmu       = `elhmu'
 		return scalar elhgini     = `elhgini'
 		return scalar elpgmu      = `elpgmu'
@@ -1748,24 +1757,29 @@ quietly {
 
 		return scalar mu        	= `mu'
 		return scalar sd			= `sd'
-		return scalar z`pl'       = `z'
+		return scalar z`pl'         = `z'
 
+	    return matrix results_`ppp'`mmm'  = `rtmp'
+		 
 		local mmm = `mmm' + 1
 
+    * close multiple means		
 	}
 
 	local ppp = `ppp' + 1
 
-	return local  zlines  "`zl'"
-	return scalar zl      = `Npline'
-	return matrix results = `rtmp'
-	  
+  * close multiple poverty lines		
   }
-  
-  restore
 
-  return add
+   return local  zlines  "`zl'"
+   return scalar zl      = `Npline'
+   return matrix results  = `rtmp'
 
+   return add
+
+ restore
+
+ 
  }
 
 end
@@ -1802,6 +1816,9 @@ end
 
 
 *-----------------------------------------------------------------------------
+* v3.1 16Apr2021             by  JPA		groupdata
+*   fix bug on the display of the lorenz table.
+* 	debug is an undocumented option
 * v3.0 13Apr2021             by  JPA		groupdata
 *    add multiple option: multiple estimates are now stored as scalars
 *    fix bugs on the reporting on elasticities
