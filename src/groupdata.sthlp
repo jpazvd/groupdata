@@ -78,7 +78,7 @@ fourth conditions ensure that the Lorenz curve is monotonically increasing and c
 
 {p 4 4 2}{opt max}{cmd:(}{it:value}{cmd:)} Maximum value of the distribution.{p_end}
 
-{p 4 4 2}{opt group:ed} Estimates using groupped  data.{p_end}
+{p 4 4 2}{opt group:ed} Select this option when groupped data must be computed on the fly. It should only be used when using unit records.{p_end}
 
 {p 4 4 2}{opt reg:ress} Distplay regression table.{p_end}
 
@@ -120,7 +120,7 @@ By typing {helpb return list}, the following results are reported:
 {synopt:{cmd:r(sd)}}	{p_end}
 {synopt:{cmd:r(mu)}} 	{p_end}
 
-{p2col 7 20 24 2: Results QG Lorenz Curve}{p_end}
+{p2col 7 20 24 2: Results GQ Lorenz Curve}{p_end}
 {synopt:{cmd:r(Hgq)}}FGT0{p_end}
 {synopt:{cmd:r(PGgq)}}FGT1{p_end}
 {synopt:{cmd:r(SPGgq)}}FGT2{p_end}
@@ -132,7 +132,7 @@ By typing {helpb return list}, the following results are reported:
 {synopt:{cmd:r(SPGb)}}FGT2{p_end}
 {synopt:{cmd:r(GINIb)}}Gini{p_end}
 
-{p2col 7 20 24 2: Checks QG Lorenz Curve}{p_end}
+{p2col 7 20 24 2: Checks GQ Lorenz Curve}{p_end}
 {synopt:{cmd:r(check1gq)}}L(0;pi)=0:{p_end}
 {synopt:{cmd:r(check2gq)}}L(1;pi)=1:{p_end}
 {synopt:{cmd:r(check3gq)}}L'(0+;pi)>=0{p_end}
@@ -161,7 +161,7 @@ By typing {helpb return list}, the following results are reported:
 {synopt:{cmd:r(elpgmu)}}with respect to the Mean{p_end}
 {synopt:{cmd:r(elpggini)}}with respect to the Gini{p_end}
 
-{p2col 7 20 24 2: Coefficients QG Lorenz Curve}{p_end}
+{p2col 7 20 24 2: Coefficients GQ Lorenz Curve}{p_end}
 {synopt:{cmd:r(agq)}}{p_end}
 {synopt:{cmd:r(bgq)}}{p_end}
 {synopt:{cmd:r(cgq)}}{p_end}
@@ -193,7 +193,7 @@ By typing {helpb return list}, the following results are reported:
 {synopt:}9 L''(p;pi)>=0 for p within (0,1){p_end}
 {p2col 5 20 24 2:}{cmd:model}{p_end}
 {synopt:}0 Unit Records{p_end}
-{synopt:}1 QQ Lorenz{p_end}
+{synopt:}1 GQ Lorenz{p_end}
 {synopt:}2 Beta Lorenz Curve{p_end}
 {p2col 5 20 24 2:}{cmd:type}{p_end}
 {synopt:}1 Estimated Value{p_end}
