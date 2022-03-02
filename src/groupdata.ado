@@ -108,7 +108,7 @@ quietly {
     exit 198
 		noi di ""
 	}
-	if (strmatch(" 1 2 5 6","*`type'*") == 1) & ("`grouped'" == "") {
+	if (strmatch(" 1 2 5 6","*`type'*") == 1) & ("`grouped'" != "") {
 		noi di ""
 		di as err "Type option can only be used when grouped data is provided. Can not specify it with grouped option."
 		exit 198
@@ -1759,21 +1759,21 @@ quietly {
 		return scalar sd			= `sd'
 		return scalar z`pl'         = `z'
 
-	    return matrix results_`ppp'`mmm'  = `rtmp'
+	    return matrix results_`ppp'`mmm'  = `tmp`pl''
 		 
-		local mmm = `mmm' + 1
+	local mmm = `mmm' + 1
 
     * close multiple means		
 	}
 
+	return local  zlines  "`zl'"
+	return scalar zl      = `Npline'
+	return matrix results  = `rtmp'
+		
 	local ppp = `ppp' + 1
 
   * close multiple poverty lines		
   }
-
-   return local  zlines  "`zl'"
-   return scalar zl      = `Npline'
-   return matrix results  = `rtmp'
 
    return add
 
@@ -1787,7 +1787,7 @@ end
 
 ********************************************************************************
 * cleanversion ado
-*! v 1.0  4apr2020             by  JPA 		cleanversion
+*! v1.0  4apr2020             by  JPA 		cleanversion
 ********************************************************************************
 
 cap: program drop cleanversion
