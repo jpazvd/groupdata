@@ -1063,7 +1063,7 @@ quietly {
 			local dis15 = normal(`tem6')
 		}
 
-		/*** Elasticities QG Lorenz */
+		/*** Elasticities GQ Lorenz */
 		local elhmu         = -(`z'/(`mu'*`H'*`ldph'))
 		local elhgini       = (1-(`z'/`mu'))/ (`H'*`ldph')
 		local elpgmu        = 1-(`H'/`PG')
@@ -1442,7 +1442,7 @@ quietly {
 		  label define var 8  "L''(p;pi)>=0 for p within (0,1)" , add modify
 
 		  label define model 0 "Unit Record"                    , add modify
-		  label define model 1 "QG Lorenz Curve"                , add modify
+		  label define model 1 "GQ Lorenz Curve"                , add modify
 		  label define model 2 "Beta Lorenz Curve"              , add modify
 
 		  label define type 1 "Estimated Value"                 , add modify
@@ -1677,7 +1677,7 @@ quietly {
 		  elhmu	  elhgini 	elpgmu	 elpggini	 elspgmu	 elspggini	 elhmub	                ///
 		  elhginib	 elpgmub	 elpgginib	 elspgmub	 elspgginib                             ///
 		  `rownames_unitrecord'                                                             ///
-		  check1qg check2qg check2qg check2qg                                               ///
+		  check1gq check2gq check2gq check2gq                                               ///
 		  check1b check2b check2b check2b
 
 
