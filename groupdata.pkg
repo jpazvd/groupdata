@@ -1,0 +1,28 @@
+v 3.0
+
+d GROUPDATA : Group Data Estimation of FGT0, FGT1, FGT2 and Gini
+d
+d Author: Joao Pedro Azevedo
+d Repo: https://github.com/jpazvd/groupdata
+d
+d KW: poverty
+d KW: inequality
+d KW: parameterized lorenz
+d
+d Requires: Stata version 15
+d Distribution-Date: 01Aug2026
+d License: MIT
+
+* Ado files
+F src/groupdata.ado
+
+* Help files
+F src/groupdata.sthlp
+
+* Dependency installer. F, not f: with f a .do file is copied to the user's
+* current directory; F forces the system directory (installs to PLUS/d/).
+* Run it after installing with:  findfile dependency.do
+*                                do "`r(fn)'"
+F dependency.do
+
+e
