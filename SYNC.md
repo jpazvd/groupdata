@@ -33,6 +33,30 @@ on that tag.
 
 Releases between v2.9 and v3.4 exist only in the upstream repository.
 
+## Lineage
+
+The command has been renamed twice. Its version history, recorded at the bottom
+of `src/groupdata.ado` and in `CHANGELOG.md`:
+
+| Version | Date | Name | Milestone |
+| :--- | :--- | :--- | :--- |
+| 1.0 | 2012-02-02 | `povcal` | Created by Joao Pedro Azevedo and Shabana Mitra |
+| 1.1 | 2014-01-14 | `grouppov` | Renamed. Technical note prepared for the World Bank Global Poverty Monitoring Working Group |
+| 2.0 | 2020-04-02 | `grouppov` | Repurposed to estimate learning poverty; `aweight` support; `wtile2` replaced by `alorenz`; microdata benchmark |
+| 2.1 | 2020-04-05 | **`groupdata`** | Renamed to its current name |
+| 2.2 – 2.9 | 2020-04-06 → 2020-06-16 | `groupdata` | Grouped-data types 1/2/5/6; coefficient-driven estimation; multiple poverty lines and means; `sd()` |
+| 3.0 | 2021-04-13 | `groupdata` | **`net install` packaging introduced** (`stata.toc`, `groupdata.pkg`); `multiple` option |
+| 3.1 – 3.2 | 2021-04-16 → 2022-03-01 | `groupdata` | Lorenz table fix; grouped-data option check |
+| 3.3 | 2026-08-01 | `groupdata` | First release of the corrected estimates |
+| 3.4 | 2026-08-01 | `groupdata` | `r(GINIgq)` corrected; `r(GINIln)` added; `unitrecord` refused on its own |
+
+Versions before 3.0 cannot be installed with `net install` — the packaging did
+not exist yet.
+
+Tags and releases for the full lineage live in the upstream development
+repository. This repository carries `v3.4` and, as a source archive only,
+`v2.9`.
+
 ## What is synced here
 
 Only the files below are copied from upstream. Everything else stays private.
