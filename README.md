@@ -60,9 +60,9 @@ See `help groupdata` for the full syntax, options, and saved results.
 
 Poverty rates at an international poverty line were originally estimated by first fitting a parametric Lorenz curve $L(p)$ to grouped data and then using the functional relationship between the slope of the Lorenz curve and mean income to identify the headcount rate of poverty. Evaluated at the point $p = H$ representing the proportion of poor in the population, the slope of the Lorenz curve equals the ratio of the poverty line $z$ to mean household expenditure (or income) per capita $\mu$:
 
-```math
-L'(p) = z/\mu \quad \text{at} \quad p = H \tag{1}
-```
+$$
+L'(p) = z/\mu \quad \text{at} \quad p = H \qquad (1)
+$$
 
 The Lorenz curve is estimated using one of two functional forms — the Beta Lorenz curve and the General Quadratic (GQ) Lorenz curve. For example, if the Beta Lorenz curve $L(p) = p - \theta p^{\gamma}(1-p)^{\delta}$ is used, three parameters $\theta$, $\gamma$, and $\delta$ need to be estimated. Four conditions must be satisfied for the estimated Lorenz curve to be theoretically valid:
 
@@ -75,9 +75,9 @@ The first two (boundary) conditions imply that 0 and 100 percent of the populati
 
 If the Beta Lorenz curve is adopted, equation (1) becomes:
 
-```math
-1 - \theta H^{\gamma}(1-H)^{\delta}\left[\frac{\gamma}{H} - \frac{\delta}{1-H}\right] = \frac{z}{\mu} \tag{2}
-```
+$$
+1 - \theta H^{\gamma}(1-H)^{\delta}\left[\frac{\gamma}{H} - \frac{\delta}{1-H}\right] = \frac{z}{\mu} \qquad (2)
+$$
 
 Given the three parameters of the Lorenz curve, the poverty line, and the mean household expenditure (or income), equation (2) can be solved for the estimate of the poverty headcount rate $H$. Poverty gaps, severity of poverty, and Gini coefficients are calculated from specific expressions derived from the fitted Lorenz curves (see Datt 1998).
 
