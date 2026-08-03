@@ -3,6 +3,55 @@
 All notable changes to the `groupdata` Stata module. The authoritative
 version history also lives at the bottom of `src/groupdata.ado`.
 
+## [3.4] - 2026-08-01
+
+### Fixed
+- The results matrix is no longer assembled against a hard-coded rowname list.
+  `mkmat` keeps only the rows it finds non-missing, but the names were a fixed
+  literal of 28 (32 with `benchmark`), so any mode filling a different number
+  of the 32 slots died at `matrix rownames` with `r(503)`. Names are now
+  selected from the same slot table the rows are written into, so the two
+  counts agree by construction. Row order, names and values are unchanged for
+  every mode that already worked (`grouped` 28 rows, `grouped benchmark` 32,
+  `unitrecord grouped` 28, coefficient-driven, `multiple`).
+- The grouped-data-only steps (`keep if pg != .` and the Lorenz distribution
+  table) were gated only on the coefficient-driven flag, so they ran for
+  standalone `unitrecord`, which never creates those variables — `r(111)`.
+  They are now gated on `grouped`/`type()` as well.
+- Consistency check 2 tested `(a + c) >= 1` while printing that value beside
+  the label `L(1;pi)=1`, so a curve with `a + c = 1.2945` was reported as OK.
+  It now evaluates the fitted curve at `p = 1` and reports OK only when
+  `L(1)` really is 1 (to within 1e-6). On the QA fixture it prints
+  `L(1;pi)=1: OK (value=   1.0000)`.
+- The lognormal-approximation Gini was computed from `ln(sd)` where `sd` is
+  already the standard deviation of log welfare — a double log. Corrected to
+  use the standard deviation directly.
+
+### Added
+- `r(GINIln)`: the lognormal-approximation Gini, `2*Phi(s/sqrt(2))-1` for `s`
+  the standard deviation of log welfare. Reported for comparison only; it is
+  not derived from either fitted Lorenz curve. On the QA fixture it is
+  `0.139029`, against a GQ Lorenz Gini of `0.133912` and a microdata Gini of
+  `0.133982`. Until v3.3 this expression was what `r(GINIgq)` returned.
+
+### Changed
+- `unitrecord` on its own is now refused with an actionable message instead of
+  aborting with `r(111)`. Fitting the parametric Lorenz curves to raw unit
+  records does not converge to a valid curve: on the QA fixture the GQ fit
+  gives `e = +0.0005` (violating `L(0)=0`), a negative discriminant and missing
+  values throughout, while the Beta fit returns a headcount of 1.49 against a
+  microdata headcount of 39.28, and worse under other restrictions. The
+  consistency checks do fire (GQ `0 0 0 0`, Beta `1 1 1 0`), but `check1b` and
+  `check2b` are hardcoded to 1 — the Beta form satisfies conditions 1 and 2 by
+  construction — so two of the four can never fail whatever the fit does, and
+  `nochecks` reports nothing at all.
+
+  The guard is on `grouped` alone. `unitrecord` with `type()` is not a working
+  combination either: both blocks generate the same tempvars, so it aborts with
+  `r(110)` — measured on all four types, before this change as well as after.
+  Refusing converts that collision into an actionable message. `unitrecord`
+  combined with `grouped` is unaffected and still supported.
+
 ## [3.3] - 2026-08-01
 
 ### Fixed

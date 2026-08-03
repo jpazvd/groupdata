@@ -1,7 +1,7 @@
 {smcl}
 {hline}
 help for {cmd:groupdata}{right:Joao Pedro Azevedo}
-{right:version 3.3}
+{right:version 3.4}
 {hline}
 
 {title:{cmd:groupdata} - Group Data Estimation of FGT0, FGT1, FGT2 and Gini}
@@ -93,7 +93,7 @@ help for {cmd:groupdata}{right:Joao Pedro Azevedo}
 
 {p 4 4 2}{opt bench:mark} Benchmark the parametric Lorenz estimates against direct estimates from the microdata (using {helpb apoverty} and {helpb ainequal}). This option is only allowed when using microdata with the original mean.{p_end}
 
-{p 4 4 2}{opt unitrec:ord} Fit the parametric Lorenz curves on the unit records.{p_end}
+{p 4 4 2}{opt unitrec:ord} Also fit the parametric Lorenz curves on the unit records, alongside the grouped-data fit. It must be combined with {opt grouped}, and is refused otherwise: fitting the curves to raw unit records does not converge to a usable Lorenz curve. The GQ fit violates L(0)=0 and returns missing throughout, and the Beta fit returns estimates far from the microdata. The consistency checks do fire, but two of the Beta checks are satisfied by the functional form and reported as passing regardless of the fit, so they cannot be relied on to catch it — and {opt nochecks} reports nothing at all. To estimate from unit records, use {opt grouped}, which builds bins from them, or estimate directly with {helpb apoverty} and {helpb ainequal}.{p_end}
 
 {p 4 4 2}{opt nofig:ures} Omit the display of figures. By default, the Lorenz curve, PDF, and Pen's Parade figures are displayed.{p_end}
 
@@ -131,6 +131,9 @@ By typing {helpb return list}, the following results are reported:
 {synopt:{cmd:r(PGb)}}FGT1{p_end}
 {synopt:{cmd:r(SPGb)}}FGT2{p_end}
 {synopt:{cmd:r(GINIb)}}Gini{p_end}
+
+{p2col 7 20 24 2: Lognormal approximation}{p_end}
+{synopt:{cmd:r(GINIln)}}Gini implied by a lognormal welfare distribution with the same standard deviation of log welfare, 2*Phi(s/sqrt(2))-1. Reported for comparison only; it is not derived from either fitted Lorenz curve.{p_end}
 
 {p2col 7 20 24 2: Checks GQ Lorenz Curve}{p_end}
 {synopt:{cmd:r(check1gq)}}L(0;pi)=0{p_end}
@@ -200,7 +203,7 @@ By typing {helpb return list}, the following results are reported:
 {synopt:}2 with respect to the Mean{p_end}
 {synopt:}3 with respect to the Gini{p_end}
 {synopt:}4 Checking for consistency of Lorenz curve estimation{p_end}
-{p2col 5 20 24 2:}{cmd:value}: estimated value; for the consistency checks: -99 NA, 1 OK, 0 FAIL.{p_end}
+{p2col 5 20 24 2:}{cmd:value}: estimated value; for the consistency checks: 1 OK, 0 FAIL, missing if not computed (that is, when {opt nochecks} is specified).{p_end}
 
 {synopt:{cmd:r(data)}}data table with the distributional data used to estimate the parametric Lorenz (only returned with the {opt grouped} option):{p_end}
 {p2col 5 20 24 2:}{cmd:percentile}{p_end}

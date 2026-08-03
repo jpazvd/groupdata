@@ -1,5 +1,5 @@
 *-----------------------------------------------------------------------------
-*! v3.3 01Aug2026             by  JPA		groupdata
+*! v3.4 01Aug2026             by  JPA		groupdata
 *   fix option validation (type, coef, bins), the grouped-data range
 *   qualifiers that aborted type(2)/type(5)/type(6), the type(5) fweight
 *   Lorenz share, Lorenz consistency checks, figure reference lines, sd()
@@ -175,6 +175,46 @@ quietly {
 	if ("`type'" == "") & ("`grouped'" == "") & ("`unitrecord'" == "") & ("`coefb'" == "") & ("`coefgq'" == "") {
 		noi di ""
 		di as err "Please select an estimation mode: grouped, unitrecord, type(), or coefb()/coefgq()."
+		exit 198
+	}
+
+	* unitrecord fits the parametric Lorenz curves to the raw unit records rather
+	* than to bins, and the fit is not usable. Measured on qa/score2017.dta
+	* (grade 5, z=200): the GQ fit is degenerate -- e = +0.0005 violates L(0)=0,
+	* the discriminant goes negative, every GQ quantity is missing -- and the
+	* Beta fit returns a headcount of 1.49 against a microdata headcount of
+	* 39.28. Under other restrictions it returns worse: a negative headcount.
+	*
+	* The consistency checks do fire here -- GQ reports 0 0 0 0 and Beta 1 1 1 0
+	* -- but they cannot be relied on to flag it: check1b and check2b are
+	* hardcoded to 1 (see the writes in 29/30 and the returns below), because
+	* the Beta functional form satisfies conditions 1 and 2 by construction. So
+	* two of the four Beta checks can never fail whatever the fit does, and with
+	* nochecks nothing is reported at all.
+	*
+	* Refused rather than returning numbers that look plausible. Note the guard
+	* is on grouped alone: unitrecord with type() is NOT a working combination
+	* either -- both blocks gen the same tempvars (`y1' `a' `b' `c' ...) so it
+	* aborts with r(110), on this branch and before it. Refusing turns that
+	* cryptic collision into the actionable message below.
+	* The coefficient path is caught by the same guard and gets its own message:
+	* it does not set grouped, and it never ran the unitrecord block at all (the
+	* skip block spanning the estimation code excludes it), so unitrecord there
+	* was a silent no-op returning the coef path's own numbers -- measured
+	* byte-identical with and without the option.
+	if ("`unitrecord'" != "") & ("`grouped'" == "") {
+		if (`skip' == 1) {
+			noi di ""
+			di as err "Option unitrecord cannot be combined with coefb()/coefgq():"
+			di as err "the coefficient vectors already determine the Lorenz curves, so"
+			di as err "unitrecord would have no effect. Drop one of them."
+			exit 198
+		}
+		noi di ""
+		di as err "Option unitrecord requires grouped: fitting the parametric Lorenz"
+		di as err "curves to raw unit records does not converge to a usable curve."
+		di as err "Use grouped to build bins from the same unit records, or estimate"
+		di as err "directly from the microdata with apoverty and ainequal."
 		exit 198
 	}
 *-----------------------------------------------------------------------------
@@ -360,8 +400,6 @@ quietly {
 			* unit record inequality estimates
 			ainequal `inc' [`weight'`exp']  if `touse'
 			local `pl'agini = r(gini_1)
-			* create row labels for output matrix
-			local rownames_unitrecord " fgt0 fgt1 fgt2 gini "
 			local ppp = `ppp' + 1
 		}
 	}
@@ -972,7 +1010,10 @@ quietly {
 			}
 		}
 			
-		if (`skip' != 1) {
+		* Only grouped() and type() build the bin ordinates. Standalone
+		* unitrecord has no bins, so there is nothing to keep and `pg' does
+		* not exist -- guarding on skip alone made it exit with r(111).
+		if (`skip' != 1) & (("`grouped'" != "") | ("`type'" != "")) {
 			*keep only group data
 			keep if `pg' != .
 		}
@@ -1049,12 +1090,15 @@ quietly {
 		#delim cr
 
 		/*** Gini */
-		* Lognormal-approximation Gini. Not reported: until v3.3 this was what
-		* r(GINIgq) and row 4 of the results matrix returned, mislabelled as the
-		* GQ Lorenz Gini. It is also computed from ln(sd) where sd is already
-		* the standard deviation of log welfare, i.e. a double log -- do not
-		* reuse it without fixing that first. See TODO.md.
-		local gini_ln = (2*normal(`lnsd'/sqrt(2))) - 1
+		* Lognormal-approximation Gini, returned as r(GINIln). If welfare were
+		* lognormal with log standard deviation s, its Gini would be
+		* 2*Phi(s/sqrt(2))-1. `sd' already holds the standard deviation of log
+		* welfare, so it is the s of that expression.
+		* Until v3.3 this passed `lnsd' = ln(`sd') instead -- a double log -- and
+		* the result was returned as r(GINIgq), mislabelled as the GQ Lorenz
+		* Gini. On the QA fixture that gave -0.676 against a microdata Gini of
+		* 0.134; the corrected expression gives 0.139.
+		local gini_ln = (2*normal(`sd'/sqrt(2))) - 1
 		local lnsd_tt = sqrt(2)*invnormal((`gini_tt'+1)/2)
 		local dirsigma = normal((1/`lnsd')*ln(`z'/`mu')+(`lnsd'/2))
 		local ginisigma = normal((1/`lnsd_tt')*ln(`z'/`mu')+(`lnsd_tt'/2))
@@ -1213,8 +1257,11 @@ quietly {
 		}
 
 		/** Condition 2 : L(1;pi)=1*/
-		local t = (`a'+`c')
-		if (`t' >= 1) {
+		* Evaluate the fitted curve at p=1 and test the condition the label
+		* claims. Until v3.3 this tested (a+c)>=1 and printed a+c beside the
+		* label L(1;pi)=1, so a curve with a+c=1.2945 was reported as OK.
+		local t = -(1/2)*(`b' + `e' + sqrt(`m' + `n' + (`e'*`e')))
+		if (abs(`t' - 1) < 1e-6) {
 			local ccheck2 = 1
 		}
 		else {
@@ -1481,7 +1528,8 @@ quietly {
 
 		`noidebug' di as text "Display Lorenz"
 
-		if (`skip' != 1) {
+		* Same guard: the distribution table is a grouped-data view.
+		if (`skip' != 1) & (("`grouped'" != "") | ("`type'" != "")) {
 			
 			label var `pg' p
 			label var `Lg' Lorenz
@@ -1609,7 +1657,6 @@ quietly {
 		}
 
 		/** Condition 2 */
-		local t = (`a'+`c')
 		if (`ccheck2' == 1) {
 			`nocheck1' di as text "L(1;pi)=1: " as res "OK (value=" %9.4f `t' ")"
 		}
@@ -1683,12 +1730,34 @@ quietly {
 
 			matrix colnames `tmp`pl'' = povline seqpov seqmean mean sd indicator model type value
 		
-		matrix rownames `tmp`pl'' = H  PG  SPG  GiniGQ   hcrb  PgBeta	 FgtBeta	 GiniBeta   ///
-		  elhmu	  elhgini 	elpgmu	 elpggini	 elspgmu	 elspggini	 elhmub	                ///
-		  elhginib	 elpgmub	 elpgginib	 elspgmub	 elspgginib                             ///
-		  `rownames_unitrecord'                                                             ///
-		  check1gq check2gq check3gq check4gq                                               ///
-		  check1b check2b check3b check4b
+		* Row names for the fixed 32-slot layout:
+		*    1-8   GQ then Beta estimates
+		*    9-20  elasticities (GQ then Beta)
+		*   21-24  microdata benchmark, populated only by benchmark
+		*   25-32  consistency checks
+		* mkmat above keeps only the rows it finds non-missing, so the names are
+		* selected the same way rather than listed as a fixed literal. A mode that
+		* leaves some slots empty then still yields matching row and name counts.
+		* Previously the list was fixed at 28 names (32 with benchmark), so any
+		* mode populating a different number of slots died at this line with
+		* r(503): standalone unitrecord fills 18 of 28, because fitting the GQ
+		* Lorenz curve to raw unit records is degenerate here and leaves the whole
+		* GQ half missing.
+		local rowslots "H PG SPG GiniGQ hcrb PgBeta FgtBeta GiniBeta"
+		local rowslots "`rowslots' elhmu elhgini elpgmu elpggini elspgmu elspggini"
+		local rowslots "`rowslots' elhmub elhginib elpgmub elpgginib elspgmub elspgginib"
+		local rowslots "`rowslots' fgt0 fgt1 fgt2 gini"
+		local rowslots "`rowslots' check1gq check2gq check3gq check4gq"
+		local rowslots "`rowslots' check1b check2b check3b check4b"
+
+		local rownameslist ""
+		local nslots : word count `rowslots'
+		forvalues rowi = 1/`nslots' {
+			if (`value'[`rowi'] != .) {
+				local rownameslist "`rownameslist' `: word `rowi' of `rowslots''"
+			}
+		}
+		matrix rownames `tmp`pl'' = `rownameslist'
 
 
 			mat check = `tmp`pl''
@@ -1702,6 +1771,7 @@ quietly {
 			return scalar PGgq_`ppp'`mmm'	= `PG'*100
 			return scalar SPGgq_`ppp'`mmm'	= `SPG'*100
 			return scalar GINIgq_`ppp'`mmm'	= `gini_tt'
+			return scalar GINIln_`ppp'`mmm'	= `gini_ln'
 			return scalar Hb_`ppp'`mmm'		= `hcrb'*100
 			return scalar PGb_`ppp'`mmm'		= `PgBeta'*100
 			return scalar SPGb_`ppp'`mmm'	= `FgtBeta'*100
@@ -1714,6 +1784,7 @@ quietly {
 		return scalar PGgq  	  	= `PG'*100
 		return scalar SPGgq 	  	= `SPG'*100
 		return scalar GINIgq  	= `gini_tt'
+		return scalar GINIln  	= `gini_ln'
 		return scalar Hb    	= `hcrb'*100
 		return scalar PGb   	  	= `PgBeta'*100
 		return scalar SPGb  	 	 = `FgtBeta'*100
@@ -1813,6 +1884,30 @@ program define cleanversion, rclass
 end
 
 
+*-----------------------------------------------------------------------------
+* v3.4 01Aug2026             by  JPA		groupdata
+*   fix consistency check 2: it tested (a+c)>=1 while printing that value
+*     next to the label L(1;pi)=1, so a curve with a+c=1.2945 was reported
+*     as OK; it now evaluates the curve at p=1 and passes only if L(1)=1
+*   fix the lognormal Gini: it was computed from ln(sd) where sd is already
+*     the standard deviation of log welfare, i.e. a double log
+*   return r(GINIln), the lognormal-approximation Gini, for comparison; it
+*     is not derived from either fitted Lorenz curve
+*   document the check encoding as it behaves (1 OK, 0 FAIL, missing when
+*     not computed) instead of the -99 sentinel the code never returned
+*   build the results-matrix rownames from the same 32-slot table the rows
+*     are written into, instead of a fixed 28/32-name literal; the name count
+*     can no longer disagree with the row count mkmat produces (r(503))
+*   guard the grouped-data-only steps (keep if pg != .; the Lorenz table) on
+*     grouped/type() as well as skip, so they no longer run for unitrecord
+*   refuse standalone unitrecord: the parametric fit to raw unit records is
+*     degenerate (GQ e>0 and missing throughout; Beta headcount 1.49 vs a
+*     microdata 39.28). The checks do fire, but check1b/check2b are hardcoded
+*     to 1 so two of four can never flag it, and nochecks reports nothing.
+*     The guard is on grouped alone: unitrecord with type() aborts r(110) on
+*     all four types, before this change too, from a tempvar collision;
+*     refusing turns that into an actionable message. unitrecord with grouped
+*     is unaffected
 *-----------------------------------------------------------------------------
 * v3.3 01Aug2026             by  JPA		groupdata
 *   fix type() option validation: an empty type() was treated as a valid
