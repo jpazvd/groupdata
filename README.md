@@ -100,15 +100,15 @@ For a fuller discussion, see the [technical note](doc/grouped-global-poverty-201
 
 ## Authors
 
-**João Pedro Azevedo**
-World Bank
-[jazevedo@worldbank.org](mailto:jazevedo@worldbank.org)
+**João Pedro Azevedo**<br>
+World Bank<br>
+[jazevedo@worldbank.org](mailto:jazevedo@worldbank.org)<br>
 [personal page](http://www.worldbank.org/en/about/people/j/joao-pedro-azevedo)
 
-**Shabana Mitra**
-Senior Fellow, ICRIER; Associate Professor, Department of Economics, Shiv Nadar University
-[shabana.mitra@snu.edu.in](mailto:shabana.mitra@snu.edu.in)
-[personal page](https://sites.google.com/site/shabanamitra/)
+**Shabana Mitra**<br>
+Senior Fellow, ICRIER; Associate Professor, Department of Economics, Shiv Nadar University<br>
+[shabana.mitra@snu.edu.in](mailto:shabana.mitra@snu.edu.in)<br>
+[personal page](https://sites.google.com/site/shabanamitra/)<br>
 Co-author of the original `povcal.ado` implementation on which this module is based.
 
 ## Acknowledgements
