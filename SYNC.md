@@ -16,6 +16,23 @@ receives only the files needed to install and understand the package.
 
 Releases are tagged on `main`.
 
+## Releases and tags
+
+| Tag | What it is |
+| :--- | :--- |
+| `v3.4` and later | Normal releases. Tagged on `main`, installable with `net install`. |
+| `v2.9` | A **source archive**, not a release you can install. |
+
+`v2.9` predates the `net install` packaging, which arrived in v3.0 (April
+2021): it has no `stata.toc` and no `groupdata.pkg`, and none has been
+back-fitted, because that would ship metadata which never existed. Its commit
+has no parent — this repository was created in 2026 and does not carry the
+2020 development history — and its `qa/` folder is omitted for the reason
+given above. Commit and tag dates are the originals. See `ARCHIVE-NOTICE.md`
+on that tag.
+
+Releases between v2.9 and v3.4 exist only in the upstream repository.
+
 ## What is synced here
 
 Only the files below are copied from upstream. Everything else stays private.
